@@ -1,4 +1,3 @@
-# Hosting a Strands
 # Hosting Strands Agents with Amazon Bedrock models in Amazon Bedrock AgentCore Runtime
 
 ## Overview
@@ -27,7 +26,7 @@ For demonstration purposes, we will  use a Strands Agent using Amazon Bedrock mo
 In our example we will use a very simple agent with two tools: `get_weather` and `get_time`. 
 
 <div style="text-align:left">
-    <img src="images/architecture_local.png" width="50%"/>
+    <img src="images/architecture_runtime.png" width="100%"/>
 </div>
 
 ### tutorial key Features
