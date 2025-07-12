@@ -107,6 +107,15 @@ def create_agentcore_role(agent_name):
     assume_role_policy_document = {
         "Version": "2012-10-17",
         "Statement": [
+            #TODO remove
+            {
+                "Sid": "AssumeRolePolicyPreprod",
+                "Effect": "Allow",
+                "Principal": {
+                    "Service": "preprod.genesis-service.aws.internal"
+                },
+                "Action": "sts:AssumeRole"
+            },
             {
                 "Sid": "AssumeRolePolicy",
                 "Effect": "Allow",
