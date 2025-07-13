@@ -25,6 +25,17 @@ When hosting agents, the SDK automatically:
 
 ![Hosting agent](images/hosting_agent_python_sdk.png)
 
+Once your agent is prepared for deployment on AgentCore Runtime, you can use the Amazon Bedrock AgentCore StarterKit to deploy it to deploy it to AgentCore Runtime.
+
+With the Starter Kit you can configure your agent deployment, launch it to create an Amazon ECR repository with the Agent's configuration and the AgentCore Runtime endpoint and invoke the created endpoint for validation.
+
+![StarterKit](../images/runtime_overview.png)
+
+Once deployed, your AgentCore Runtime architecture in AWS looks as following:
+
+![RuntimeArchitecture](../images/runtime_architecture.png)
+
+
 ## Tutorial Examples
 
 This tutorial includes three hands-on examples to get you started:
@@ -37,11 +48,11 @@ This tutorial includes three hands-on examples to get you started:
 
 ## Key Benefits
 
-- ✅ **Framework Agnostic**: Works with any Python-based agent framework
-- ✅ **Model Flexible**: Support for Amazon Bedrock, OpenAI, and other LLM providers  
-- ✅ **Production Ready**: Built-in health checks and monitoring
-- ✅ **Easy Integration**: Minimal code changes required
-- ✅ **Scalable**: Designed for enterprise workloads
+- **Framework Agnostic**: Works with any Python-based agent framework
+- **Model Flexible**: Support for Amazon Bedrock, OpenAI, and other LLM providers  
+- **Production Ready**: Built-in health checks and monitoring
+- **Easy Integration**: Minimal code changes required
+- **Scalable**: Designed for enterprise workloads
 
 ## Getting Started
 
