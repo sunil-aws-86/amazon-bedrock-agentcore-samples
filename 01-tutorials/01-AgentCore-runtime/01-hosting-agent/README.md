@@ -23,23 +23,17 @@ When hosting agents, the SDK automatically:
   - **`/entrypoint`**: Primary agent interaction (JSON input → JSON/SSE output)
   - **`/ping`**: Health check for monitoring
 
-<div style="text-align:left">
-    <img src="images/hosting_agent_python_sdk.png" width="100%"/>
-</div>
+![Hosting agent](images/hosting_agent_python_sdk.png)
 
 Once your agent is prepared for deployment on AgentCore Runtime, you can use the Amazon Bedrock AgentCore StarterKit to deploy it to deploy it to AgentCore Runtime.
 
 With the Starter Kit you can configure your agent deployment, launch it to create an Amazon ECR repository with the Agent's configuration and the AgentCore Runtime endpoint and invoke the created endpoint for validation.
 
-<div style="text-align:left">
-    <img src="../images/runtime_overview.png" width="100%"/>
-</div>
+![StarterKit](../images/runtime_overview.png)
 
 Once deployed, your AgentCore Runtime architecture in AWS looks as following:
 
-<div style="text-align:left">
-    <img src="../images/runtime_architecture.png" width="100%"/>
-</div>
+![RuntimeArchitecture](../images/runtime_architecture.png)
 
 
 ## Tutorial Examples
