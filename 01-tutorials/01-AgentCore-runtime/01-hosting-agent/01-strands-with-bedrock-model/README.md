@@ -8,7 +8,7 @@ We will focus on a Strands Agents with Amazon Bedrock model example. For LangGra
 and for a Strands Agents with an OpenAI model check [here](../03-strands-with-openai-model).
 
 
-### Tutorial details
+### Tutorial Details
 
 | Information         | Details                                                                          |
 |:--------------------|:---------------------------------------------------------------------------------|
@@ -33,7 +33,7 @@ In our example we will use a very simple agent with two tools: `get_weather` and
     <img src="images/architecture_runtime.png" width="100%"/>
 </div>
 
-### Tutorial key Features
+### Tutorial Key Features
 
 * Hosting Agents on Amazon Bedrock AgentCore Runtime
 * Using Amazon Bedrock models

@@ -7,7 +7,7 @@ In this tutorial we will learn how to host your existing agent, using Amazon Bed
 We will focus on a LangGraph with Amazon Bedrock model example. For Strands Agents with Amazon Bedrock model check [here](../01-strands-with-bedrock-model)
 and for a Strands Agents with an OpenAI model check [here](../03-strands-with-openai-model).
 
-### Tutorial details
+### Tutorial Details
 
 | Information         | Details                                                                      |
 |:--------------------|:-----------------------------------------------------------------------------|
@@ -32,7 +32,7 @@ In our example we will use a very simple agent with two tools: `get_weather` and
     <img src="images/architecture_runtime.png" width="100%"/>
 </div>
 
-### Tutorial key Features
+### Tutorial Key Features
 
 * Hosting Agents on Amazon Bedrock AgentCore Runtime
 * Using Amazon Bedrock models
