@@ -1,4 +1,0 @@
-strands-agents 
-duckduckgo-search
-strands-agents-tool
-uv
