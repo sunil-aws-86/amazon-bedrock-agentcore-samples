@@ -41,7 +41,7 @@ You will need to install the pre-requisites for deploying your agent into AgentC
 4. Once you have `uv` installed, create and activate a new environment using the following commands:
 ```commandline
 uv python install 3.10
-uv venv
+uv venv --python 3.10
 source .venv/bin/activate
 uv init
 ```
