@@ -1,4 +1,4 @@
-# Hosting tools on AgentCore Runtime
+# Hosting MCP server on AgentCore Runtime
 
 ## Overview
 
@@ -43,10 +43,7 @@ In this tutorial we will describe how to deploy an existing MCP server to AgentC
 
 For demonstration purposes, we will use a very simple MCP server with 3 tools: `add_numbers`, `multiply_numbers` and `greet_users`
 
-
-<div style="text-align:left">
-    <img src="images/hosting_mcp_server.png" width="100%"/>
-</div>
+![MCP architecture](images/hosting_mcp_server.png)
 
 ### Tutorial Key Features
 
