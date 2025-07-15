@@ -14,7 +14,7 @@ Environment Variables:
     BEDROCK_AGENTCORE_ROLE_ARN    - IAM role ARN for Bedrock AgentCore execution (will use default pattern if not set)
     RECORDING_BUCKET    - S3 bucket for recordings (default: session-record-test-{account_id})
     RECORDING_PREFIX    - S3 prefix for recordings (default: replay-data)
-    BEDROCK_AGENTCORE_STAGE       - Bedrock AgentCore stage (default: gamma)
+    BEDROCK_AGENTCORE_STAGE       - Bedrock AgentCore stage (default: prod)
 
 Requirements:
     - AWS credentials with permission to create/manage Bedrock AgentCore browsers
