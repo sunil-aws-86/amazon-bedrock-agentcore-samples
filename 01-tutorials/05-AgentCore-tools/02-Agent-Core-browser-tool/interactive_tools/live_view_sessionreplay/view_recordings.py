@@ -2,7 +2,7 @@
 """
 Standalone Session Replay Viewer
 
-This script allows you to view Genesis browser recordings stored in S3
+This script allows you to view Bedrock Agentcore browser recordings stored in S3
 without needing to create a new browser session.
 
 Usage:
@@ -54,7 +54,7 @@ class CustomS3DataSource:
         self.prefix = prefix
         self.session_id = session_id
         self.session_prefix = f"{prefix}/{session_id}"
-        self.temp_dir = Path(tempfile.mkdtemp(prefix='genesis_replay_'))
+        self.temp_dir = Path(tempfile.mkdtemp(prefix='bedrock_agentcore_replay_'))
         
     def cleanup(self):
         """Clean up temp files"""
