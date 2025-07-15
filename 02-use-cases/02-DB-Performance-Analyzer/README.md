@@ -1,6 +1,6 @@
 # PostgreSQL Database Performance Analysis Tools
 
-This directory contains AWS Lambda-based tools for analyzing PostgreSQL database performance using Amazon Bedrock Agent Core. The tools provide comprehensive database analysis capabilities including query performance, DDL extraction, slow query analysis, and system health monitoring.
+This directory contains AWS Lambda-based tools for analyzing PostgreSQL database performance using Amazon Bedrock AgentCore. The tools provide comprehensive database analysis capabilities including query performance, DDL extraction, slow query analysis, and system health monitoring.
 
 ## Architecture Diagram
 
@@ -11,6 +11,7 @@ This directory contains AWS Lambda-based tools for analyzing PostgreSQL database
 
 | Information | Details |
 |-------------|---------|
+| Use case | Analyzing PostgreSQL database performance using Amazon Bedrock AgentCore. The tools provide comprehensive database analysis capabilities including query performance, DDL extraction, slow query analysis, and system health monitoring.|
 | Use case type | Conversational |
 | Agent type | Single agent |
 | Use case components | Tools, Gateway |
