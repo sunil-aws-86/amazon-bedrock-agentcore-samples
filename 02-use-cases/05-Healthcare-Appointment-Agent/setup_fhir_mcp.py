@@ -127,8 +127,7 @@ def delete_gateway(gateway_id):
 def create_egress_oauth_provider(gateway_name):
     acps_client = boto_session.client(
         "agentcredentialprovider",
-        region_name=os.getenv("aws_default_region"),
-        endpoint_url=os.getenv("identity_base_url")
+        region_name=os.getenv("aws_default_region")
     )
 
     cred_provider_name = f"{gateway_name}-oauth-credential-provider"
