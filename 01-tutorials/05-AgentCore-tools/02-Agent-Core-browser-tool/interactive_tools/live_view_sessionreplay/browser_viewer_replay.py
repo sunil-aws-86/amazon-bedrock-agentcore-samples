@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Genesis Browser Live Viewer with proper display sizing support and DCV debugging.
+Bedrock-agentcore Browser Live Viewer with proper display sizing support and DCV debugging.
 """
 
 import os
@@ -21,13 +21,13 @@ from bedrock_agentcore.tools.browser_client import BrowserClient
 console = Console()
 
 class BrowserViewerServer:
-    """Server for viewing Genesis Browser sessions with configurable display size."""
+    """Server for viewing Bedrock-agentcore Browser sessions with configurable display size."""
     
     def __init__(self, browser_client: BrowserClient, port: int = 8000):
         """Initialize the viewer server."""
         self.browser_client = browser_client
         self.port = port
-        self.app = FastAPI(title="Genesis Browser Viewer")
+        self.app = FastAPI(title="Bedrock-agentcore Browser Viewer")
         self.server_thread = None
         self.is_running = False
         self.has_control = False  # Add control state tracking
@@ -58,10 +58,10 @@ class BrowserViewerServer:
     def _create_static_files(self):
         """Create the JavaScript and CSS files included with the SDK."""
         
-        # Create genesis-browser-viewer.js with enhanced debugging
-        js_content = '''// Genesis Browser Viewer Module with Enhanced Debugging
+        # Create bedrock-agentcore-browser-viewer.js with enhanced debugging
+        js_content = '''// Bedrock-agentcore Browser Viewer Module with Enhanced Debugging
 import dcv from "../../dcvjs/dcv.js";
-export class GenesisLiveViewer {
+export class Bedrock-agentcoreLiveViewer {
     constructor(presignedUrl, containerId = 'dcv-display') {
         this.displayLayoutRequested = false;
         this.presignedUrl = presignedUrl;
@@ -69,26 +69,26 @@ export class GenesisLiveViewer {
         this.connection = null;
         this.desiredWidth = 1600;
         this.desiredHeight = 900;
-        console.log('[GenesisLiveViewer] Initialized with URL:', presignedUrl);
+        console.log('[Bedrock-agentcoreLiveViewer] Initialized with URL:', presignedUrl);
     }
 
     httpExtraSearchParamsCallBack(method, url, body, returnType) {
-        console.log('[GenesisLiveViewer] httpExtraSearchParamsCallBack called:', { method, url, returnType });
+        console.log('[Bedrock-agentcoreLiveViewer] httpExtraSearchParamsCallBack called:', { method, url, returnType });
         const parsedUrl = new URL(this.presignedUrl);
         const params = parsedUrl.searchParams;
-        console.log('[GenesisLiveViewer] Returning auth params:', params.toString());
+        console.log('[Bedrock-agentcoreLiveViewer] Returning auth params:', params.toString());
         return params;
     }
     
     displayLayoutCallback(serverWidth, serverHeight, heads) {
-        console.log(`[GenesisLiveViewer] Display layout callback: ${serverWidth}x${serverHeight}`);
+        console.log(`[Bedrock-agentcoreLiveViewer] Display layout callback: ${serverWidth}x${serverHeight}`);
         
         const display = document.getElementById(this.containerId);
         display.style.width = `${this.desiredWidth}px`;
         display.style.height = `${this.desiredHeight}px`;
 
         if (this.connection) {
-            console.log(`[GenesisLiveViewer] Requesting display layout: ${this.desiredWidth}x${this.desiredHeight}`);
+            console.log(`[Bedrock-agentcoreLiveViewer] Requesting display layout: ${this.desiredWidth}x${this.desiredHeight}`);
             // Only request display layout once
             if (!this.displayLayoutRequested) {
                 console.log('inside this method');
@@ -115,25 +115,25 @@ export class GenesisLiveViewer {
                 return;
             }
 
-            console.log('[GenesisLiveViewer] DCV SDK loaded, version:', dcv.version || 'Unknown');
-            console.log('[GenesisLiveViewer] Available DCV methods:', Object.keys(dcv));
-            console.log('[GenesisLiveViewer] Presigned URL:', this.presignedUrl);
+            console.log('[Bedrock-agentcoreLiveViewer] DCV SDK loaded, version:', dcv.version || 'Unknown');
+            console.log('[Bedrock-agentcoreLiveViewer] Available DCV methods:', Object.keys(dcv));
+            console.log('[Bedrock-agentcoreLiveViewer] Presigned URL:', this.presignedUrl);
             
             // Set debug logging
             if (dcv.setLogLevel) {
                 dcv.setLogLevel(dcv.LogLevel.DEBUG);
-                console.log('[GenesisLiveViewer] DCV log level set to DEBUG');
+                console.log('[Bedrock-agentcoreLiveViewer] DCV log level set to DEBUG');
             }
 
-            console.log('[GenesisLiveViewer] Starting authentication...');
+            console.log('[Bedrock-agentcoreLiveViewer] Starting authentication...');
             
             dcv.authenticate(this.presignedUrl, {
                 promptCredentials: () => {
-                    console.warn('[GenesisLiveViewer] DCV requested credentials - should not happen with presigned URL');
+                    console.warn('[Bedrock-agentcoreLiveViewer] DCV requested credentials - should not happen with presigned URL');
                 },
                 error: (auth, error) => {
-                    console.error('[GenesisLiveViewer] DCV auth error:', error);
-                    console.error('[GenesisLiveViewer] Error details:', {
+                    console.error('[Bedrock-agentcoreLiveViewer] DCV auth error:', error);
+                    console.error('[Bedrock-agentcoreLiveViewer] Error details:', {
                         message: error.message || error,
                         code: error.code,
                         statusCode: error.statusCode,
@@ -142,14 +142,14 @@ export class GenesisLiveViewer {
                     reject(error);
                 },
                 success: (auth, result) => {
-                    console.log('[GenesisLiveViewer] DCV auth success:', result);
+                    console.log('[Bedrock-agentcoreLiveViewer] DCV auth success:', result);
                     if (result && result[0]) {
                         const { sessionId, authToken } = result[0];
-                        console.log('[GenesisLiveViewer] Session ID:', sessionId);
-                        console.log('[GenesisLiveViewer] Auth token received:', authToken ? 'Yes' : 'No');
+                        console.log('[Bedrock-agentcoreLiveViewer] Session ID:', sessionId);
+                        console.log('[Bedrock-agentcoreLiveViewer] Auth token received:', authToken ? 'Yes' : 'No');
                         this.connectToSession(sessionId, authToken, resolve, reject);
                     } else {
-                        console.error('[GenesisLiveViewer] No session data in auth result');
+                        console.error('[Bedrock-agentcoreLiveViewer] No session data in auth result');
                         reject(new Error('No session data in auth result'));
                     }
                 },
@@ -159,7 +159,7 @@ export class GenesisLiveViewer {
     }
 
     connectToSession(sessionId, authToken, resolve, reject) {
-        console.log('[GenesisLiveViewer] Connecting to session:', sessionId);
+        console.log('[Bedrock-agentcoreLiveViewer] Connecting to session:', sessionId);
         
         const connectOptions = {
             url: this.presignedUrl,
@@ -169,11 +169,11 @@ export class GenesisLiveViewer {
             baseUrl: "/static/dcvjs",
             callbacks: {
                 firstFrame: () => {
-                    console.log('[GenesisLiveViewer] First frame received!');
+                    console.log('[Bedrock-agentcoreLiveViewer] First frame received!');
                     resolve(this.connection);
                 },
                 error: (error) => {
-                    console.error('[GenesisLiveViewer] Connection error:', error);
+                    console.error('[Bedrock-agentcoreLiveViewer] Connection error:', error);
                     reject(error);
                 },
                 httpExtraSearchParams: this.httpExtraSearchParamsCallBack.bind(this),
@@ -181,15 +181,15 @@ export class GenesisLiveViewer {
             }
         };
         
-        console.log('[GenesisLiveViewer] Connect options:', connectOptions);
+        console.log('[Bedrock-agentcoreLiveViewer] Connect options:', connectOptions);
         
         dcv.connect(connectOptions)
         .then(connection => {
-            console.log('[GenesisLiveViewer] Connection established:', connection);
+            console.log('[Bedrock-agentcoreLiveViewer] Connection established:', connection);
             this.connection = connection;
         })
         .catch(error => {
-            console.error('[GenesisLiveViewer] Connect failed:', error);
+            console.error('[Bedrock-agentcoreLiveViewer] Connect failed:', error);
             reject(error);
         });
     }
@@ -211,12 +211,12 @@ export class GenesisLiveViewer {
     }
 }'''
         
-        js_file = self.js_dir / "genesis-browser-viewer-replay.js"
+        js_file = self.js_dir / "bedrock-agentcore-browser-viewer-replay.js"
         with open(js_file, 'w') as f:
             f.write(js_content)
         
         # Create viewer.css with added control button styles
-        css_content = '''/* Genesis Browser Viewer Styles */
+        css_content = '''/* Bedrock-agentcore Browser Viewer Styles */
 body { 
     margin: 0; 
     padding: 0; 
@@ -543,7 +543,7 @@ button.active {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Genesis Browser Viewer</title>
+    <title>Bedrock-agentcore Browser Viewer</title>
     <link rel="stylesheet" href="/static/css/viewer.css">
 </head>
 <body>'''
@@ -552,7 +552,7 @@ button.active {
         html_container = f'''
     <div class="container">
         <div class="header">
-            <h2>Genesis Browser Viewer - Session: {self.browser_client.session_id}</h2>
+            <h2>Bedrock-agentcore Browser Viewer - Session: {self.browser_client.session_id}</h2>
         </div>
         
         <div class="viewer-wrapper">
@@ -604,8 +604,8 @@ button.active {
         html_script_part1 = '''
     <!-- Main viewer logic -->
     <script>
-        // GenesisLiveViewer class
-        class GenesisLiveViewer {
+        // Bedrock-agentcoreLiveViewer class
+        class Bedrock-agentcoreLiveViewer {
             constructor(presignedUrl, containerId = 'dcv-display') {
                 this.displayLayoutRequested = false;
                 this.presignedUrl = presignedUrl;
@@ -613,26 +613,26 @@ button.active {
                 this.connection = null;
                 this.desiredWidth = 1600;
                 this.desiredHeight = 900;
-                console.log('[GenesisLiveViewer] Initialized with URL:', presignedUrl);
+                console.log('[Bedrock-agentcoreLiveViewer] Initialized with URL:', presignedUrl);
             }
 
             httpExtraSearchParamsCallBack(method, url, body, returnType) {
-                console.log('[GenesisLiveViewer] httpExtraSearchParamsCallBack called:', { method, url, returnType });
+                console.log('[Bedrock-agentcoreLiveViewer] httpExtraSearchParamsCallBack called:', { method, url, returnType });
                 const parsedUrl = new URL(this.presignedUrl);
                 const params = parsedUrl.searchParams;
-                console.log('[GenesisLiveViewer] Returning auth params:', params.toString());
+                console.log('[Bedrock-agentcoreLiveViewer] Returning auth params:', params.toString());
                 return params;
             }
             
             displayLayoutCallback(serverWidth, serverHeight, heads) {
-                console.log(`[GenesisLiveViewer] Display layout callback: ${serverWidth}x${serverHeight}`);
+                console.log(`[Bedrock-agentcoreLiveViewer] Display layout callback: ${serverWidth}x${serverHeight}`);
                 
                 const display = document.getElementById(this.containerId);
                 display.style.width = `${this.desiredWidth}px`;
                 display.style.height = `${this.desiredHeight}px`;
 
                 if (this.connection) {
-                    console.log(`[GenesisLiveViewer] Requesting display layout: ${this.desiredWidth}x${this.desiredHeight}`);
+                    console.log(`[Bedrock-agentcoreLiveViewer] Requesting display layout: ${this.desiredWidth}x${this.desiredHeight}`);
                     // Only request display layout once
                     if (!this.displayLayoutRequested) {
                         console.log('inside this method');
@@ -661,25 +661,25 @@ button.active {
                         return;
                     }
 
-                    console.log('[GenesisLiveViewer] DCV SDK loaded, version:', dcv.version || 'Unknown');
-                    console.log('[GenesisLiveViewer] Available DCV methods:', Object.keys(dcv));
-                    console.log('[GenesisLiveViewer] Presigned URL:', this.presignedUrl);
+                    console.log('[Bedrock-agentcoreLiveViewer] DCV SDK loaded, version:', dcv.version || 'Unknown');
+                    console.log('[Bedrock-agentcoreLiveViewer] Available DCV methods:', Object.keys(dcv));
+                    console.log('[Bedrock-agentcoreLiveViewer] Presigned URL:', this.presignedUrl);
                     
                     // Set debug logging
                     if (dcv.setLogLevel) {
                         dcv.setLogLevel(dcv.LogLevel.DEBUG);
-                        console.log('[GenesisLiveViewer] DCV log level set to DEBUG');
+                        console.log('[Bedrock-agentcoreLiveViewer] DCV log level set to DEBUG');
                     }
 
-                    console.log('[GenesisLiveViewer] Starting authentication...');
+                    console.log('[Bedrock-agentcoreLiveViewer] Starting authentication...');
                     
                     dcv.authenticate(this.presignedUrl, {
                         promptCredentials: () => {
-                            console.warn('[GenesisLiveViewer] DCV requested credentials - should not happen with presigned URL');
+                            console.warn('[Bedrock-agentcoreLiveViewer] DCV requested credentials - should not happen with presigned URL');
                         },
                         error: (auth, error) => {
-                            console.error('[GenesisLiveViewer] DCV auth error:', error);
-                            console.error('[GenesisLiveViewer] Error details:', {
+                            console.error('[Bedrock-agentcoreLiveViewer] DCV auth error:', error);
+                            console.error('[Bedrock-agentcoreLiveViewer] Error details:', {
                                 message: error.message || error,
                                 code: error.code,
                                 statusCode: error.statusCode,
@@ -688,14 +688,14 @@ button.active {
                             reject(error);
                         },
                         success: (auth, result) => {
-                            console.log('[GenesisLiveViewer] DCV auth success:', result);
+                            console.log('[Bedrock-agentcoreLiveViewer] DCV auth success:', result);
                             if (result && result[0]) {
                                 const { sessionId, authToken } = result[0];
-                                console.log('[GenesisLiveViewer] Session ID:', sessionId);
-                                console.log('[GenesisLiveViewer] Auth token received:', authToken ? 'Yes' : 'No');
+                                console.log('[Bedrock-agentcoreLiveViewer] Session ID:', sessionId);
+                                console.log('[Bedrock-agentcoreLiveViewer] Auth token received:', authToken ? 'Yes' : 'No');
                                 this.connectToSession(sessionId, authToken, resolve, reject);
                             } else {
-                                console.error('[GenesisLiveViewer] No session data in auth result');
+                                console.error('[Bedrock-agentcoreLiveViewer] No session data in auth result');
                                 reject(new Error('No session data in auth result'));
                             }
                         },
@@ -707,7 +707,7 @@ button.active {
     # Main viewer script - Part 3: Session connect methods
         html_script_part3 = '''
             connectToSession(sessionId, authToken, resolve, reject) {
-                console.log('[GenesisLiveViewer] Connecting to session:', sessionId);
+                console.log('[Bedrock-agentcoreLiveViewer] Connecting to session:', sessionId);
                 
                 const connectOptions = {
                     url: this.presignedUrl,
@@ -717,11 +717,11 @@ button.active {
                     baseUrl: "/static/dcvjs",
                     callbacks: {
                         firstFrame: () => {
-                            console.log('[GenesisLiveViewer] First frame received!');
+                            console.log('[Bedrock-agentcoreLiveViewer] First frame received!');
                             resolve(this.connection);
                         },
                         error: (error) => {
-                            console.error('[GenesisLiveViewer] Connection error:', error);
+                            console.error('[Bedrock-agentcoreLiveViewer] Connection error:', error);
                             reject(error);
                         },
                         httpExtraSearchParams: this.httpExtraSearchParamsCallBack.bind(this),
@@ -729,15 +729,15 @@ button.active {
                     }
                 };
                 
-                console.log('[GenesisLiveViewer] Connect options:', connectOptions);
+                console.log('[Bedrock-agentcoreLiveViewer] Connect options:', connectOptions);
                 
                 dcv.connect(connectOptions)
                 .then(connection => {
-                    console.log('[GenesisLiveViewer] Connection established:', connection);
+                    console.log('[Bedrock-agentcoreLiveViewer] Connection established:', connection);
                     this.connection = connection;
                 })
                 .catch(error => {
-                    console.error('[GenesisLiveViewer] Connect failed:', error);
+                    console.error('[Bedrock-agentcoreLiveViewer] Connect failed:', error);
                     reject(error);
                 });
             }
@@ -777,6 +777,7 @@ button.active {
         
         // Check DCV SDK
         if (typeof dcv !== 'undefined') {{
+            
             log('[Main] DCV SDK loaded successfully');
             log('[Main] DCV methods: ' + Object.keys(dcv).join(', '));
             
@@ -799,7 +800,7 @@ button.active {
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    document.getElementById('take-control').style.display = 'none';
+                    document.getElementById('take-control').style.display =y = 'none';
                     document.getElementById('release-control').style.display = 'inline-block';
                     document.getElementById('control-indicator').textContent = '🎮 You Have Control';
                     updateStatus('You have control');
@@ -870,7 +871,7 @@ button.active {
                     log('[Main] Could not fetch debug info: ' + e.message);
                 }}
                 
-                viewer = new GenesisLiveViewer('{presigned_url}', 'dcv-display');
+                viewer = new Bedrock-agentcoreLiveViewer('{presigned_url}', 'dcv-display');
                 viewer.setDisplaySize(1600, 900);
                 
                 updateStatus('Connecting to browser session...');
