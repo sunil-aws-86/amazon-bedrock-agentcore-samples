@@ -67,6 +67,30 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
 
+  IAMRoleLambdaAPIGWognito:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /service-role/
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AmazonAPIGatewayAdministrator
+      MaxSessionDuration: 3600
+      RoleName: !Join
+        - '-'
+        - - 'lambda-iam-role-apicognito'
+          - !Select
+            - 2
+            - !Split
+              - '/'
+              - !Ref 'AWS::StackId'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+
   IAMRolePrimitives:
     Type: AWS::IAM::Role
     Properties:
@@ -143,6 +167,110 @@ Resources:
           data_store_endpoint: !GetAtt HealthLakeFHIRDatastore.DatastoreEndpoint
       Architectures:
         - x86_64
+
+  APIGWCognitoLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 60
+      Role: !GetAtt IAMRoleLambdaAPIGWognito.Arn
+      Environment:
+        Variables:
+          RestAPIId: !Ref RestApi
+          CognitoAuthId: !Ref APIAuthorizer
+          oAuthScope: !Join
+            - ''
+            - - 'default-m2m-resource-server-'
+              - !Select [0, !Split ['-', !Select [2, !Split ['/', !Ref 'AWS::StackId']]]]
+              - '/read'
+      Code:
+        ZipFile:
+          !Sub |
+            import json
+            import boto3
+            import os
+
+            RestAPIId = os.environ.get('RestAPIId', 'None')
+            CognitoAuthId = os.environ.get('CognitoAuthId', 'None')
+            oAuthScope = os.environ.get('oAuthScope', 'None')
+
+            def handler(event, context):
+                print(f"Event recd: {event}")
+
+                if event["RequestType"] in ["Create", "Update", "Delete"]:
+                    apiClient = boto3.client('apigateway')
+
+                    response = apiClient.get_resources(restApiId = RestAPIId, limit=100)
+                    #print(response)
+
+                    for resource in response['items']:
+                        ResourceId = resource['id']
+                        ResourcePath = resource['path']
+
+                        print(f"Resource Id:{ResourceId}, path: {ResourcePath}")
+
+                        if 'resourceMethods' in resource:
+                            for method in resource['resourceMethods']:
+                                http_method = method
+
+                                if event["RequestType"] in ["Create", "Update"]:
+                                    print(f"Adding auth to Method: {http_method}")
+
+                                    response = apiClient.update_method(
+                                        restApiId=RestAPIId,
+                                        resourceId=ResourceId,
+                                        httpMethod=http_method,
+                                        patchOperations=[
+                                            {
+                                                'op': 'replace',
+                                                'path': '/authorizationType',
+                                                'value': 'COGNITO_USER_POOLS'
+                                            },
+                                            {
+                                                'op': 'replace',
+                                                'path': '/authorizerId',
+                                                'value': CognitoAuthId
+                                            },
+                                            {
+                                                'op': 'add',
+                                                'path': '/authorizationScopes',
+                                                'value': oAuthScope
+                                            }
+                                        ]
+                                    )
+                                else:
+                                    print(f"Removing auth from Method: {http_method}")
+
+                                    response = apiClient.update_method(
+                                        restApiId=RestAPIId,
+                                        resourceId=ResourceId,
+                                        httpMethod=http_method,
+                                        patchOperations=[
+                                            {
+                                                'op': 'replace',
+                                                'path': '/authorizationType',
+                                                'value': 'NONE'
+                                            },
+                                            {
+                                                'op': 'remove',
+                                                'path': '/authorizationScopes',
+                                                'value': oAuthScope
+                                            }
+                                        ]
+                                    )
+
+                    print("Deploying to Dev stage")
+
+                    response = apiClient.create_deployment(restApiId = RestAPIId, stageName = 'dev')
+
+                    print("Deployment to Dev stage complete")
+                                
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps('Auth Updated')
+                }
+
   # REST API
   RestApi:
     Type: 'AWS::ApiGateway::RestApi'
@@ -409,6 +537,11 @@ Outputs:
     Value: !Sub 'https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}'
     Export:
       Name: !Sub '${AWS::StackName}-ApiUrl'
+  APIGWCognitoLambdaName:
+    Description: 'Lambda function to add authorisation to API Gateway'
+    Value: !Ref APIGWCognitoLambda
+    Export:
+      Name: !Sub '${AWS::StackName}-APIGWCognitoLambdaName'
   UserPoolId:
     Description: 'Cognito User Pool Id'
     Value: !Ref UserPool

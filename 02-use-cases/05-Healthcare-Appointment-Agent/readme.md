@@ -134,7 +134,7 @@ Install dependencies
 uv pip install -r requirements.txt
 ```
 
-Initialize the environment by running below command. This will create an **.env** file which would be used for environment variables. Use the same region name as what was used with Cloudformation template above. Note down **APIEndpoint** as returned in the output.
+Initialize the environment by running below command. This will create an **.env** file which would be used for environment variables. Use the same region name as what was used with Cloudformation template above. Note down **APIEndpoint** and **APIGWCognitoLambdaName** as returned in the output.
 
 ```
 python init_env.py \
@@ -155,6 +155,17 @@ python init_env.py \
 
 The **.env** file should look like below.
 ![EnvImage1](static/env_screenshot1.png)
+
+
+**Enable Cognito Auth with API Gateway**
+```
+aws lambda invoke \
+--function-name <input APIGWCognitoLambdaName as noted earlier> \
+response.json \
+--payload '{ "RequestType": "Create" }' \
+--cli-binary-format raw-in-base64-out \
+--region <us-east-1 or us-west-2>
+```
 
 ### Create some test data in AWS Healthlake
 Run the below python program to ingest the test data as present in **test_data** folder. It may take around ~5 minutes to complete.
@@ -199,3 +210,30 @@ python langgraph_agent.py --gateway_id <gateway_id_here>
 * Please find slots for MMR vaccine around the scheduled date
 
 ![Image1](static/appointment_agent_demo.gif)
+
+
+## Clean up instructions
+Disable Cognito Auth with API Gateway
+
+```
+aws lambda invoke \
+--function-name <input APIGWCognitoLambdaName as noted earlier> \
+response.json \
+--payload '{ "RequestType": "Delete" }' \
+--cli-binary-format raw-in-base64-out \
+--region <us-east-1 or us-west-2>
+```
+
+Delete the gateway and gateway target. If you created multiple gateways then repeat this step for all gateways.
+
+```
+python setup_fhir_mcp.py --op_type Delete --gateway_id <gateway_id_here>
+```
+
+Delete the cloudformation stack.
+
+```
+aws cloudformation delete-stack \
+  --stack-name healthcare-cfn-stack \
+  --region <us-east-1 or us-west-2>
+```
