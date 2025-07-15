@@ -16,8 +16,6 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument('--cfn_name', help = "Name of cloudformation template")
 parser.add_argument('--region', default="us-east-1", help = "The AWS region to be used")
-parser.add_argument('--agentcore_endpoint', default="https://bedrock-agentcore-control.us-east-1.amazonaws.com", help = "The Gateway control plane endpoint")
-parser.add_argument('--identity_endpoint', default="https://us-east-1.prod.agent-credential-provider.cognito.aws.dev", help = "The endpoint for Identity primitive")
 parser.add_argument('--openapi_spec_file', default="./temp-fhir-openapi-spec.yaml", help = "Path of OpenAPI spec file")
 parser.add_argument('--profile', help = "AWS Credentials Profile Name (optional)")
 
@@ -29,8 +27,6 @@ def main():
     env_vars = {
         "aws_default_region": args.region,
         "gateway_iam_role": "",
-        "agentcore_cp_base_url":args.agentcore_endpoint,
-        "identity_base_url":args.identity_endpoint,
         "cognito_discovery_url":"",
         "cognito_issuer":"",
         "cognito_auth_endpoint":"",
@@ -148,20 +144,6 @@ if __name__ == "__main__":
         raise Exception("AWS Region is required")
     elif args.region!= "us-east-1" and args.region!= "us-west-2":
         raise Exception("Only regions us-east-1 and us-west-2 are supported for now")
-    
-    if args.agentcore_endpoint is None:
-        raise Exception("AgentCore endpoint is required")
-    else:
-        (urlString, exitCode) = validate_url(args.agentcore_endpoint)
-        if exitCode != 0:
-            raise Exception(urlString)
-        
-    if args.identity_endpoint is None:
-        raise Exception("Identity endpoint is required")
-    else:
-        (urlString, exitCode) = validate_url(args.identity_endpoint)
-        if exitCode != 0:
-            raise Exception(urlString)
         
     if args.openapi_spec_file is None:
         raise Exception("OpenAPI spec file path required")
