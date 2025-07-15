@@ -4,7 +4,7 @@ This directory contains the MCP (Model Context Protocol) gateway management tool
 
 ## 📁 Files
 
-- `main.py` - Genesis Gateway Management Tool for creating and managing AWS Genesis Gateways
+- `main.py` - AgentCore Gateway Management Tool for creating and managing AWS AgentCore Gateways
 - `mcp_cmds.sh` - Shell script for MCP gateway operations and setup
 - `generate_token.py` - JWT token generation for gateway authentication
 - `openapi_s3_target_cognito.sh` - Script for adding OpenAPI targets with S3 and Cognito integration
@@ -47,7 +47,7 @@ This setup process will:
 
 ### Gateway Management (`main.py`)
 The main gateway management tool provides functionality to:
-- Create and manage AWS Genesis Gateways
+- Create and manage AWS AgentCore Gateways
 - Support MCP protocol integration
 - Handle JWT authorization
 - Add OpenAPI targets from S3 or inline schemas

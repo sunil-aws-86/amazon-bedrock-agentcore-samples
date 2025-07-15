@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Genesis Gateway Management Tool
+AgentCore Gateway Management Tool
 
-This tool provides functionality to create and manage AWS Genesis Gateways
+This tool provides functionality to create and manage AWS AgentCore Gateways
 with MCP protocol support and JWT authorization. It supports creating
 gateways and adding OpenAPI targets from S3 or inline schemas.
 """
@@ -26,13 +26,13 @@ logging.basicConfig(
 )
 
 
-def _create_genesis_client(region: str, endpoint_url: str) -> Any:
+def _create_agentcore_client(region: str, endpoint_url: str) -> Any:
     """
-    Create and return a Genesis client for interacting with the AWS service.
+    Create and return an AgentCore client for interacting with the AWS service.
 
     Args:
         region: AWS region name
-        endpoint_url: Genesis endpoint URL
+        endpoint_url: AgentCore endpoint URL
 
     Returns:
         Configured boto3 client for bedrock-agentcore-control
@@ -41,10 +41,10 @@ def _create_genesis_client(region: str, endpoint_url: str) -> Any:
         client = boto3.client(
             "bedrock-agentcore-control", region_name=region, endpoint_url=endpoint_url
         )
-        logging.info(f"Created Genesis client for region {region}")
+        logging.info(f"Created AgentCore client for region {region}")
         return client
     except Exception as e:
-        logging.error(f"Failed to create Genesis client: {e}")
+        logging.error(f"Failed to create AgentCore client: {e}")
         raise
 
 
@@ -127,7 +127,7 @@ def _check_gateway_exists(client: Any, gateway_name: str) -> str:
     Check if a gateway with the given name already exists.
 
     Args:
-        client: Genesis client
+        client: AgentCore client
         gateway_name: Name of the gateway to check
 
     Returns:
@@ -157,7 +157,7 @@ def _delete_gateway_targets(client: Any, gateway_id: str) -> None:
     Delete all targets associated with a gateway.
 
     Args:
-        client: Genesis client
+        client: AgentCore client
         gateway_id: Gateway ID whose targets to delete
     """
     try:
@@ -199,7 +199,7 @@ def _delete_gateway(client: Any, gateway_id: str) -> None:
     Delete a gateway by ID, including all its targets.
 
     Args:
-        client: Genesis client
+        client: AgentCore client
         gateway_id: Gateway ID to delete
     """
     try:
@@ -225,15 +225,15 @@ def create_gateway(
     discovery_url: str,
     allowed_audience: str = None,
     allowed_clients: list = None,
-    description: str = "Genesis Gateway created via SDK",
+    description: str = "AgentCore Gateway created via SDK",
     search_type: str = "SEMANTIC",
     protocol_version: str = "2025-03-26",
 ) -> Dict[str, Any]:
     """
-    Create a new Genesis Gateway with JWT authorization.
+    Create a new AgentCore Gateway with JWT authorization.
 
     Args:
-        client: Genesis client
+        client: AgentCore client
         gateway_name: Name for the gateway
         role_arn: IAM role ARN with necessary permissions
         discovery_url: JWT discovery URL
@@ -293,7 +293,7 @@ def create_s3_target(
     Create a gateway target from an S3 OpenAPI schema.
 
     Args:
-        client: Genesis client
+        client: AgentCore client
         gateway_id: Gateway identifier
         s3_uri: S3 URI of the OpenAPI schema
         provider_arn: OAuth credential provider ARN
@@ -355,7 +355,7 @@ def create_inline_target(
     Create a gateway target from an inline OpenAPI schema.
 
     Args:
-        client: Genesis client
+        client: AgentCore client
         gateway_id: Gateway identifier
         openapi_schema: Inline OpenAPI schema as string
         provider_arn: OAuth credential provider ARN
@@ -396,7 +396,7 @@ def verify_gateway(client: Any, gateway_id: str) -> Dict[str, Any]:
     Verify gateway creation by fetching its details.
 
     Args:
-        client: Genesis client
+        client: AgentCore client
         gateway_id: Gateway identifier
 
     Returns:
@@ -418,7 +418,7 @@ def list_gateway_targets(client: Any, gateway_id: str) -> Dict[str, Any]:
     List all targets for a gateway.
 
     Args:
-        client: Genesis client
+        client: AgentCore client
         gateway_id: Gateway identifier
 
     Returns:
@@ -438,11 +438,11 @@ def list_gateway_targets(client: Any, gateway_id: str) -> Dict[str, Any]:
 def main():
     """Main function to orchestrate gateway creation and management."""
     parser = argparse.ArgumentParser(
-        description="Create and manage AWS Genesis Gateways with MCP protocol support"
+        description="Create and manage AWS AgentCore Gateways with MCP protocol support"
     )
 
     # Required arguments
-    parser.add_argument("gateway_name", help="Name for the Genesis Gateway")
+    parser.add_argument("gateway_name", help="Name for the AgentCore Gateway")
 
     # AWS configuration
     parser.add_argument(
@@ -450,8 +450,8 @@ def main():
     )
     parser.add_argument(
         "--endpoint-url",
-        default="https://gamma.us-east-1.gatewaycp.genesis-primitives.aws.dev/",
-        help="Genesis endpoint URL",
+        default="https://bedrock-agentcore-control.us-east-1.amazonaws.com",
+        help="AgentCore endpoint URL",
     )
     parser.add_argument(
         "--role-arn", required=True, help="IAM Role ARN with gateway permissions"
@@ -473,7 +473,7 @@ def main():
     # Gateway configuration
     parser.add_argument(
         "--description-for-gateway",
-        default="Genesis Gateway created via SDK",
+        default="AgentCore Gateway created via SDK",
         help="Gateway description",
     )
     parser.add_argument(
@@ -528,8 +528,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Create Genesis client
-    client = _create_genesis_client(args.region, args.endpoint_url)
+    # Create AgentCore client
+    client = _create_agentcore_client(args.region, args.endpoint_url)
 
     # Check if gateway already exists and handle deletion if requested
     existing_gateway_id = _check_gateway_exists(client, args.gateway_name)
