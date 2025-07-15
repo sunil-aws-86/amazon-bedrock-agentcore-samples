@@ -6,6 +6,18 @@ This directory contains AWS Lambda-based tools for analyzing PostgreSQL database
 
 ![PostgreSQL DB Performance Analyzer Architecture](./images/db-analyzer-architecture.png)
 
+
+## Use Case Details
+
+| Information | Details |
+|-------------|---------|
+| Use case type | Conversational |
+| Agent type | Single agent |
+| Use case components | Tools, Gateway |
+| Use case vertical | All Industries |
+| Example complexity | Intermediate |
+| SDK used | Amazon Bedrock AgentCore SDK, boto3 |
+
 ## Process Flow
 
 1. **User Interaction**: Users interact with the database analysis tools through Amazon Q or other clients that support the MCP protocol.
