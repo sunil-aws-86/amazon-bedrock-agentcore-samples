@@ -2,7 +2,7 @@
 """
 Complete Browser Example with Recording and Replay
 
-This example demonstrates a full Genesis browser workflow:
+This example demonstrates a full Bedrock AgentCore browser workflow:
 1. Create browser with recording enabled
 2. Start browser session 
 3. View live with take/release control
@@ -11,13 +11,13 @@ This example demonstrates a full Genesis browser workflow:
 
 Environment Variables:
     AWS_REGION          - AWS region (default: us-west-2)
-    GENESIS_ROLE_ARN    - IAM role ARN for Genesis execution (will use default pattern if not set)
+    BEDROCK_AGENTCORE_ROLE_ARN    - IAM role ARN for Bedrock AgentCore execution (will use default pattern if not set)
     RECORDING_BUCKET    - S3 bucket for recordings (default: session-record-test-{account_id})
     RECORDING_PREFIX    - S3 prefix for recordings (default: replay-data)
-    GENESIS_STAGE       - Genesis stage (default: gamma)
+    BEDROCK_AGENTCORE_STAGE       - Bedrock AgentCore stage (default: gamma)
 
 Requirements:
-    - AWS credentials with permission to create/manage Genesis browsers
+    - AWS credentials with permission to create/manage Bedrock AgentCore browsers
     - Execution role with permissions for S3 and browser operations
     - S3 bucket with appropriate permissions
 """
@@ -63,7 +63,7 @@ console = Console()
 
 # Configuration from environment variables with defaults
 REGION = os.environ.get("AWS_REGION", "us-west-2")
-GENESIS_STAGE = os.environ.get("GENESIS_STAGE", "gamma")
+BEDROCK_AGENTCORE_STAGE = os.environ.get("BEDROCK_AGENTCORE_STAGE", "gamma")
 
 # Get account ID from STS if not provided
 try:
@@ -72,11 +72,11 @@ try:
     console.print(f"[dim]Using AWS Account ID: {ACCOUNT_ID}[/dim]")
 except Exception as e:
     console.print(f"[yellow]Warning: Could not determine AWS Account ID: {e}[/yellow]")
-    console.print("[yellow]Please set GENESIS_ROLE_ARN environment variable manually.[/yellow]")
-    ACCOUNT_ID = "YOUR_ACCOUNT_ID"  # This will be used only if GENESIS_ROLE_ARN is not set
+    console.print("[yellow]Please set BEDROCK_AGENTCORE_ROLE_ARN environment variable manually.[/yellow]")
+    ACCOUNT_ID = "YOUR_ACCOUNT_ID"  # This will be used only if BEDROCK_AGENTCORE_ROLE_ARN is not set
 
 # Set up role ARN and bucket name
-ROLE_ARN = os.environ.get("GENESIS_ROLE_ARN", f"arn:aws:iam::{ACCOUNT_ID}:role/GenesisAdmin")
+ROLE_ARN = os.environ.get("BEDROCK_AGENTCORE_ROLE_ARN", f"arn:aws:iam::{ACCOUNT_ID}:role/BedrockAgentCoreAdmin")
 BUCKET_PREFIX = os.environ.get("RECORDING_BUCKET_PREFIX", "session-record-test")
 BUCKET_NAME = os.environ.get("RECORDING_BUCKET", f"{BUCKET_PREFIX}-{ACCOUNT_ID}")
 S3_PREFIX = os.environ.get("RECORDING_PREFIX", "replay-data")
@@ -229,7 +229,7 @@ def get_sigv4_headers(region: str, session_id: str) -> Dict[str, str]:
         'Connection': 'Upgrade',
         'Sec-WebSocket-Version': '13',
         'Sec-WebSocket-Key': ws_key,
-        'User-Agent': 'Genesis-BrowserViewer/1.0'
+        'User-Agent': 'Bedrock-AgentCore-BrowserViewer/1.0'
     }
     
     # Add security token if present
@@ -259,7 +259,7 @@ def run_live_viewer_with_control(browser_client):
     print("\nPress Ctrl+C when done to view recordings")
     
     try:
-        # Keep running until user stops
+        # KeeKeep running until user stops
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
@@ -323,7 +323,7 @@ def view_recordings(s3_location):
                 self.prefix = prefix
                 self.session_id = session_id
                 self.session_prefix = f"{prefix}/{session_id}"
-                self.temp_dir = Path(tempfile.mkdtemp(prefix='genesis_replay_'))
+                self.temp_dir = Path(tempfile.mkdtemp(prefix='bedrock_agentcore_replay_'))
                 
             def cleanup(self):
                 """Clean up temp files"""
@@ -417,7 +417,7 @@ def view_recordings(s3_location):
                     except Exception as e:
                         print(f"⚠️ No metadata found: {e}")
                     
-                    # Get batch files from metadata if possible
+                    # Get batch files from metadata ta if possible
                     batch_files = []
                     if 'batches' in metadata and isinstance(metadata['batches'], list):
                         for batch in metadata['batches']:
@@ -464,7 +464,7 @@ def view_recordings(s3_location):
                                             
                         except Exception as e:
                             print(f"⚠️ Error processing file {key}: {e}")
-                            import traceback
+                            import rt traceback
                             traceback.print_exc()
                     
                     print(f"✅ Loaded {len(all_events)} events")
@@ -673,7 +673,7 @@ def view_recordings(s3_location):
 def main():
     """Main flow"""
     
-    console.print("🚀 Genesis Browser Complete Example")
+    console.print("🚀 Bedrock AgentCore Browser Complete Example")
     console.print("=" * 50)
     
     browser_client = None
