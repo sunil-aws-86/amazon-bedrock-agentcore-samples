@@ -1,12 +1,8 @@
-# Device Management Lambda
+# Device Management System
 
-This AWS Lambda function implements all the MCP server tools from the Device Management MCP system in a single Lambda function. It provides a unified interface for managing IoT devices, WiFi networks, users, and activities through AWS Lambda.
+## Overview
 
-## Architecture Diagram
-
-![Device Management Architecture](./images/device-management-architecture.png)
-
-## Use Case Details
+This use case implements a comprehensive Device Management System using Amazon Bedrock AgentCore. It provides a unified interface for managing IoT devices, WiFi networks, users, and activities through AWS Lambda, allowing users to interact with their smart home devices through natural language.
 
 | Information | Details |
 |-------------|---------|
@@ -17,7 +13,11 @@ This AWS Lambda function implements all the MCP server tools from the Device Man
 | Example complexity | Intermediate |
 | SDK used | Amazon Bedrock AgentCore SDK, boto3 |
 
-## Process Flow
+## Use case Architecture
+
+![Device Management Architecture](./images/device-management-architecture.png)
+
+### Process Flow
 
 1. **User Interaction**: Users interact with the Device Management system through Amazon Q or other clients that support the MCP protocol.
 
@@ -38,9 +38,9 @@ This AWS Lambda function implements all the MCP server tools from the Device Man
 
 5. **Data Flow**: All device data, user information, and configuration settings are stored in and retrieved from DynamoDB tables.
 
-## Overview
+## Use case key Features
 
-The Device Management Lambda function provides the following capabilities:
+The Device Management System provides the following capabilities:
 
 - List devices in the system
 - Get device settings
@@ -49,28 +49,17 @@ The Device Management Lambda function provides the following capabilities:
 - List users within an account
 - Query user activity within a time period
 
-## Files
+## Prerequisites
 
-- `lambda_function.py`: Main Lambda handler that implements all MCP tools
-- `dynamodb_models.py`: DynamoDB table definitions and initialization
-- `synthetic_data.py`: Script to generate synthetic test data
-- `requirements.txt`: Python dependencies
-- `deploy.sh`: Deployment script for the Lambda function
-- `create_gateway.py`: Script to create a gateway for the MCP server
-- `device-management-target.py`: Script to create a gateway target for the Lambda function
-- `.env`: Environment variables configuration file
-- `test_lambda.py`: Script to test the Lambda function locally
+- Python 3.10+
+- AWS account with appropriate permissions
+- boto3 and Amazon Bedrock AgentCore SDK
+- Cognito User Pool with configured app client
+- Cognito Domain (optional but recommended for hosted UI)
+- IAM Role for Bedrock Agent Core Gateway with appropriate permissions
 
-## Setup and Deployment
-
-### Pre-Requisites
-
-#### Authentication & Security Requirements
-- **Cognito User Pool** with configured app client
-- **Cognito Domain** (optional but recommended for hosted UI)
-- **IAM Role** for Bedrock Agent Core Gateway with appropriate permissions
-Attach the below policy to your IAM role
-```
+Attach the below policy to your IAM role:
+```json
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -87,17 +76,19 @@ Attach the below policy to your IAM role
 }
 ```
 
+## Use case setup
+
 ### 1. Environment Configuration
 
 Create a `.env` file in the project root with the following variables:
 
 ```
 # AWS and endpoint configuration
-AWS_REGION=us-west-2
-ENDPOINT_URL=https://bedrock-agentcore-control.us-west-2.amazonaws.com
+AWS_REGION=<Your AWS Region>
+ENDPOINT_URL=https://bedrock-agentcore-control.<REGION>.amazonaws.com
 
 # Lambda configuration
-LAMBDA_ARN=arn:aws:lambda:us-west-2:your-account-id:function:DeviceManagementLambda
+LAMBDA_ARN=arn:aws:lambda:<REGION>:your-account-id:function:DeviceManagementLambda
 
 # Target configuration
 GATEWAY_IDENTIFIER=your-gateway-identifier
@@ -143,45 +134,15 @@ To create a new gateway, execute the below script:
 python create_gateway.py
 ```
 
-This script:
-- Loads configuration from the `.env` file
-- Creates a gateway in Amazon Bedrock with Cognito authentication
-- Outputs the Gateway ID upon successful creation
-
-Make sure to update the following variables in your `.env` file before running this script:
-- `COGNITO_USERPOOL_ID`: Your Cognito User Pool ID
-- `COGNITO_APP_CLIENT_ID`: Your Cognito App Client ID
-- `ROLE_ARN`: The IAM role ARN with permissions to manage gateways
-- `GATEWAY_NAME`: Name for your new gateway
-- `GATEWAY_DESCRIPTION`: Description for your new gateway
-
 ### 5. Create Gateway Target
 
-After deploying the Lambda function, create a gateway target to expose the Lambdafunction as targets:
+After deploying the Lambda function, create a gateway target to expose the Lambda function as targets:
 
 ```bash
 python device-management-target.py
 ```
 
-This script:
-- Loads configuration from the `.env` file
-- Creates a gateway target in Amazon Bedrock using the Lambda function
-- Configures the tool schema for all available operations
-- Outputs the Target ID upon successful creation
-
-### 6. DynamoDB Tables
-
-The function uses the following DynamoDB tables in the configured AWS region:
-
-- `Devices`: Device inventory and status
-- `DeviceSettings`: Device configuration settings
-- `WifiNetworks`: WiFi network configurations
-- `Users`: User accounts and profiles
-- `UserActivities`: User activity logs
-
-These tables should already exist with your data.
-
-### 7. Generate Test Data (Optional)
+### 6. Generate Test Data (Optional)
 
 To populate the tables with synthetic test data:
 
@@ -189,7 +150,9 @@ To populate the tables with synthetic test data:
 python synthetic_data.py
 ```
 
-### 8. Test the Lambda Function
+## Execution instructions
+
+### 1. Test the Lambda Function
 
 You can test the Lambda function locally using the provided test script:
 
@@ -197,9 +160,84 @@ You can test the Lambda function locally using the provided test script:
 python test_lambda.py
 ```
 
-This script tests all available tools and verifies that they work correctly.
+### 2. Invoking tools using Q CLI
 
-## IAM Permissions
+Update the mcp.json file with this config:
+```json
+cd ~/.aws/amazonq
+vi mcp.json
+## Update this json
+{
+  "mcpServers": {
+    "<you_desired_mcp_server_name>": {
+      "command": "npx",
+      "timeout": 60000,
+      "args": [
+        "mcp-remote@latest",
+        "https://<gateway id>.gateway.bedrock-agentcore.<REGION>.amazonaws.com/mcp",
+        "--header",
+        "Authorization: Bearer <Bearer token>"
+      ]
+    }
+  }
+}
+```
+
+### 3. Sample prompts:
+
+1. "Can you list all the dorment devices?"
+2. "Can you update SSID for my device ID DG-10016 to XXXXXXXXXX'?"
+3. "Can you list all the available tools?"
+4. "Can you show me the device settings for the device ID DG-10016?"
+5. "Can you show me the Wifi setting for the device ID DB-10005?"
+
+## Clean up instructions
+
+To clean up resources created by this use case:
+
+1. Delete the Lambda function:
+```bash
+aws lambda delete-function --function-name DeviceManagementLambda
+```
+
+2. Delete the Gateway Target:
+```bash
+aws bedrock-agentcore delete-gateway-target --gateway-identifier <your-gateway-identifier> --target-name device-management-target
+```
+
+3. Delete the Gateway (if you created a new one):
+```bash
+aws bedrock-agentcore delete-gateway --gateway-identifier <your-gateway-identifier>
+```
+
+4. Delete the DynamoDB tables (if you created them for this use case):
+```bash
+aws dynamodb delete-table --table-name Devices
+aws dynamodb delete-table --table-name DeviceSettings
+aws dynamodb delete-table --table-name WifiNetworks
+aws dynamodb delete-table --table-name Users
+aws dynamodb delete-table --table-name UserActivities
+```
+
+## Disclaimer
+
+The examples provided in this repository are for experimental and educational purposes only. They demonstrate concepts and techniques but are not intended for direct use in production environments. Make sure to have Amazon Bedrock Guardrails in place to protect against prompt injection.
+
+## Additional Information
+
+### Files
+
+- `lambda_function.py`: Main Lambda handler that implements all MCP tools
+- `dynamodb_models.py`: DynamoDB table definitions and initialization
+- `synthetic_data.py`: Script to generate synthetic test data
+- `requirements.txt`: Python dependencies
+- `deploy.sh`: Deployment script for the Lambda function
+- `create_gateway.py`: Script to create a gateway for the MCP server
+- `device-management-target.py`: Script to create a gateway target for the Lambda function
+- `.env`: Environment variables configuration file
+- `test_lambda.py`: Script to test the Lambda function locally
+
+### IAM Permissions
 
 The Lambda function requires the following IAM permissions:
 
@@ -216,79 +254,22 @@ The Lambda function requires the following IAM permissions:
         "dynamodb:UpdateItem"
       ],
       "Resource": [
-        "arn:aws:dynamodb:us-west-2:*:table/Devices",
-        "arn:aws:dynamodb:us-west-2:*:table/DeviceSettings",
-        "arn:aws:dynamodb:us-west-2:*:table/WifiNetworks",
-        "arn:aws:dynamodb:us-west-2:*:table/Users",
-        "arn:aws:dynamodb:us-west-2:*:table/UserActivities",
-        "arn:aws:dynamodb:us-west-2:*:table/UserActivities/index/ActivityTypeIndex"
+        "arn:aws:dynamodb:<Region>:*:table/Devices",
+        "arn:aws:dynamodb:<Region>:*:table/DeviceSettings",
+        "arn:aws:dynamodb:<Region>:*:table/WifiNetworks",
+        "arn:aws:dynamodb:<Region>:*:table/Users",
+        "arn:aws:dynamodb:<Region>:*:table/UserActivities",
+        "arn:aws:dynamodb:<Region>:*:table/UserActivities/index/ActivityTypeIndex"
       ]
     }
   ]
 }
 ```
 
-The deployment script automatically creates this role and attaches the necessary policies.
-
-## Available MCP Tools
-
-The Lambda function exposes the following MCP tools:
-
-1. `list_devices`: Lists all devices in the system
-2. `get_device_settings`: Retrieves settings for a specific device
-3. `list_wifi_networks`: Lists WiFi networks for a specific device
-4. `list_users`: Lists all users in the system
-5. `query_user_activity`: Queries user activity within a time period
-6. `update_wifi_ssid`: Updates the SSID for a WiFi network
-7. `update_wifi_security`: Updates the security type for a WiFi network
-
-## Invoking tools using Q CLI
-### Update the mcp.json file with this config 
-```
-cd ~/.aws/amazonq
-vi mcp.json
-## Update this json
-{
-  "mcpServers": {
-    "<you_desired_mcp_server_name>": {
-      "command": "npx",
-      "timeout": 60000,
-      "args": [
-        "mcp-remote@latest",
-        "https://<gateway id>.gateway.bedrock-agentcore.us-west-2.amazonaws.com/mcp",
-        "--header",
-        "Authorization: Bearer <Bearer token>"
-      ]
-    }
-  }
-}
-```
-## Sample prompts:
-
-1. "Can you list all the dorment devices?"
-2. "Can you update SSID for my device ID DG-10016 to XXXXXXXXXX'?"
-3. "Can you list all the available tools?"
-4. "Can you show me the device settings for the device ID DG-10016?"
-5. "Can you show me the Wifi setting for the device ID DB-10005?"
-
-## Troubleshooting
+### Troubleshooting
 
 - **Missing environment variables**: Ensure all required variables are set in the `.env` file
 - **Lambda deployment failures**: Check AWS IAM permissions and Lambda service quotas
 - **Gateway creation failures**: Verify the Cognito User Pool ID, App Client ID, and IAM role ARN
 - **Gateway target creation failures**: Verify the gateway identifier and Lambda ARN are correct
 - **DynamoDB access issues**: Confirm the Lambda execution role has the necessary permissions
-
-## Dependencies
-
-- boto3
-- python-dateutil
-- python-dotenv
-
-## Security Considerations
-
-- The Lambda function should be deployed with the principle of least privilege
-- Consider using AWS Secrets Manager for sensitive configuration values
-- Implement appropriate authentication and authorization for API access
-- Review and rotate IAM credentials regularly
-- Ensure Cognito User Pool is configured with appropriate security settings
