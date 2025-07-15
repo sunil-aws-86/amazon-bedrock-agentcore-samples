@@ -10,6 +10,8 @@ langchain==0.3.26
 langchain-aws==0.2.27
 langchain-mcp-adapters==0.1.7
 langgraph==0.5.1
-./local_wheels/botocore-1.39.5-py3-none-any.whl
-./local_wheels/boto3-1.39.5-py3-none-any.whl
-./local_wheels/amzn_AWSAgentCredentialProviderServiceBotocoreClient-1.0-py3-none-any.whl
+botocore==1.39.5 #Version number to be double checked
+boto3==1.39.5 #Version number to be double checked
+#bedrock_agentcore==0.1.0
+#bedrock_agentcore_starter_toolkit==0.1.0
+#amzn_AWSAgentCredentialProviderServiceBotocoreClient==1.0
