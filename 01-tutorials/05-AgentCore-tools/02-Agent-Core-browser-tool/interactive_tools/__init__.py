@@ -1,1 +1,1 @@
-"""Examples for Genesis SDK Tools."""
+"""Examples for Bedrock AgentCore SDK Tools."""
