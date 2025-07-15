@@ -6,6 +6,17 @@ This AWS Lambda function implements all the MCP server tools from the Device Man
 
 ![Device Management Architecture](./images/device-management-architecture.png)
 
+## Use Case Details
+
+| Information | Details |
+|-------------|---------|
+| Use case type | Conversational |
+| Agent type | Single agent |
+| Use case components | Tools, Gateway |
+| Use case vertical | IoT/Smart Home |
+| Example complexity | Intermediate |
+| SDK used | Amazon Bedrock AgentCore SDK, boto3 |
+
 ## Process Flow
 
 1. **User Interaction**: Users interact with the Device Management system through Amazon Q or other clients that support the MCP protocol.
