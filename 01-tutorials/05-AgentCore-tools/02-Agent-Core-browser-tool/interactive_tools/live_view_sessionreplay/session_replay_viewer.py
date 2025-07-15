@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Session Replay Viewer for Genesis Browser Sessions
+Session Replay Viewer for Bedrock Agentcore Browser Sessions
 
 Views session recordings stored in standard rrweb-{timestamp}-{sessionid} format.
 Supports both local sample recordings and S3 streaming.
@@ -105,7 +105,7 @@ class SessionReplayHandler(BaseHTTPRequestHandler):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Genesis Session Replay Viewer</title>
+    <title>Bedrock Agentcore Session Replay Viewer</title>
     <style>
         * { box-sizing: border-box; }
         
@@ -251,7 +251,7 @@ class SessionReplayHandler(BaseHTTPRequestHandler):
 </head>
 <body>
     <div class="header">
-        <h1>Genesis Session Replay Viewer</h1>
+        <h1>Bedrock Agentcore Session Replay Viewer</h1>
     </div>
     
     <div class="container">
@@ -642,7 +642,7 @@ class S3DataSource(DataSource):
         self.s3_client = boto3.client('s3')
         self.bucket = bucket
         self.prefix = prefix.rstrip('/')
-        self.temp_dir = Path(tempfile.mkdtemp(prefix='genesis_replay_'))
+        self.temp_dir = Path(tempfile.mkdtemp(prefix=‘bedrock_agentcore_replay_'))
         
         console.print(f"[cyan]Using S3 location:[/cyan]")
         console.print(f"  Bucket: {bucket}")
