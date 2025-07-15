@@ -1,0 +1,10 @@
+# Install beta wheel files first
+wheelhouse/botocore-1.39.3-py3-none-any.whl
+wheelhouse/boto3-1.39.3-py3-none-any.whl
+wheelhouse/awscli-1.41.3-py3-none-any.whl
+
+# Standard packages
+jupyter>=1.0.0
+notebook>=6.0.0
+requests>=2.25.0
+urllib3>=1.26.0
