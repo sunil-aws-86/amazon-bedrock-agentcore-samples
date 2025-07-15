@@ -253,6 +253,14 @@ vi mcp.json
 }
 ```
 
+## Sample prompts:
+
+1. "Can you list all the dorment devices?"
+2. "Can you update SSID for my device ID DG-10016 to XXXXXXXXXX'?"
+3. "Can you list all the available tools?"
+4. "Can you show me the device settings for the device ID DG-10016?"
+5. "Can you show me the Wifi setting for the device ID DB-10005?"
+
 ## Troubleshooting
 
 - **Missing environment variables**: Ensure all required variables are set in the `.env` file
