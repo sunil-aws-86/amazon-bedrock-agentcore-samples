@@ -63,7 +63,7 @@ console = Console()
 
 # Configuration from environment variables with defaults
 REGION = os.environ.get("AWS_REGION", "us-west-2")
-BEDROCK_AGENTCORE_STAGE = os.environ.get("BEDROCK_AGENTCORE_STAGE", "gamma")
+BEDROCK_AGENTCORE_STAGE = os.environ.get("BEDROCK_AGENTCORE_STAGE", "prod")
 
 # Get account ID from STS if not provided
 try:
