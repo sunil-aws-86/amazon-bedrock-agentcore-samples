@@ -1,5 +1,5 @@
 """
-Dynamic LangGraph Research Agent with Genesis 1P Tools
+Dynamic LangGraph Research Agent with Bedrock-AgentCore 1P Tools
 The LLM generates all analysis code based on the research query
 """
 
@@ -12,8 +12,8 @@ from datetime import datetime
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_aws import ChatBedrockConverse
-from genesis.tools.browser_client import BrowserClient
-from genesis.tools.code_interpreter_client import CodeInterpreter
+from bedrock-agentcore.tools.browser_client import BrowserClient
+from bedrock-agentcore.tools.code_interpreter_client import CodeInterpreter
 from rich.console import Console
 from rich.panel import Panel
 
@@ -40,7 +40,7 @@ class DynamicResearchAgent:
             region_name=region
         )
         
-        console.print("[cyan]Initializing Genesis 1P Tools...[/cyan]")
+        console.print("[cyan]Initializing Bedrock-AgentCore 1P Tools...[/cyan]")
         
         # Initialize persistent sessions
         self.code_client = CodeInterpreter(region)
