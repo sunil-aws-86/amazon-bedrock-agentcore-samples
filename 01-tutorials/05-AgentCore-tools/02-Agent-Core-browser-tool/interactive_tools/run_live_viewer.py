@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Standalone script to run the Genesis Browser Live Viewer.
+Standalone script to run the Bedrock-AgentCore Browser Live Viewer.
 This shows how to use the interactive_tools modules.
 """
 
@@ -19,7 +19,7 @@ console = Console()
 def main():
     """Run the browser live viewer with display sizing."""
     console.print(Panel(
-        "[bold cyan]Genesis Browser Live Viewer[/bold cyan]\n\n"
+        "[bold cyan]Bedrock-AgentCore Browser Live Viewer[/bold cyan]\n\n"
         "This demonstrates:\n"
         "• Live browser viewing with DCV\n"
         "• Configurable display sizes (not limited to 900×800)\n"
