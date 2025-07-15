@@ -479,7 +479,7 @@ button.active {
                 "session_id": self.browser_client.session_id,
                 "identifier": self.browser_client.identifier,
                 "region": self.browser_client.region,
-                "stage": os.environ.get("GENESIS_STAGE", "gamma"),
+                "stage": os.environ.get("GENESIS_STAGE", "prod"),
                 "display_sizes": [
                     {"width": 1280, "height": 720, "label": "HD"},
                     {"width": 1600, "height": 900, "label": "HD+"},
@@ -497,7 +497,7 @@ button.active {
                     "id": self.browser_client.session_id,
                     "identifier": self.browser_client.identifier,
                     "region": self.browser_client.region,
-                    "stage": os.environ.get("GENESIS_STAGE", "gamma")
+                    "stage": os.environ.get("GENESIS_STAGE", "prod")
                 },
                 "server": {
                     "static_dir": str(self.static_dir),
