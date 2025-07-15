@@ -1,1 +1,1 @@
-"""Examples for Genesis SDK Tools."""
+"""Examples for Agentcore SDK Tools."""
