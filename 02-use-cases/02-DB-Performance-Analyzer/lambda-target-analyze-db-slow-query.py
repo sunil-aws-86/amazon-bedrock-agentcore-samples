@@ -1,7 +1,7 @@
 import boto3
 import os
 
-genesis_client = boto3.client(
+agentcore_client = boto3.client(
     'bedrock-agentcore-control', 
     region_name=os.getenv('AWS_REGION', 'us-west-2'), 
     endpoint_url=os.getenv('ENDPOINT_URL')
@@ -138,7 +138,7 @@ credential_config = [
 ]
   
 
-response = genesis_client.create_gateway_target(
+response = agentcore_client.create_gateway_target(
     gatewayIdentifier=os.getenv('GATEWAY_IDENTIFIER'), # Replace with your GatewayID
     name=os.getenv('TARGET_NAME','pgstat-analyze-db'),
     description=os.getenv('TARGET_DESCRIPTION', 'PostgreSQL database performance analysis tool for Slow Query, Connection Issues, IO and Index analysis'),
