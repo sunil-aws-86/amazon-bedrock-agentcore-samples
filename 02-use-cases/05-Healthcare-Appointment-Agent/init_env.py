@@ -24,6 +24,7 @@ parser.add_argument('--profile', help = "AWS Credentials Profile Name (optional)
 def main():
     user_pool_id = ""
     apigateway_endpoint = ""
+    apigateway_cognito_lambda = ""
 
     env_vars = {
         "aws_default_region": args.region,
@@ -93,6 +94,8 @@ def main():
             user_pool_id = output['OutputValue']
         elif output['OutputKey'] == 'ApiUrl':
             apigateway_endpoint = output['OutputValue']
+        elif output['OutputKey'] == 'APIGWCognitoLambdaName':
+            apigateway_cognito_lambda = output['OutputValue']
             
     #print(env_vars)
 
@@ -121,7 +124,8 @@ def main():
             f.write(f"{key}={value}\n")
 
     print(".env file created/updated successfully.")
-    print(f"Please note down the APIEndpoint {apigateway_endpoint} and update the OpenAPI spec accordingly")
+    print(f"Please note down the APIEndpoint: {apigateway_endpoint} and update the OpenAPI spec accordingly")
+    print(f"Please note down the APIGWCognitoLambdaName: {apigateway_cognito_lambda} as it would be needed in subsequent steps")
 
 def validate_url(url_string):
     try:
