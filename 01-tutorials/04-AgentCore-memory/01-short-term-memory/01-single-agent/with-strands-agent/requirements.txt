@@ -1,4 +1,4 @@
 strands-agents 
 duckduckgo-search
-strands-agents-tool
+strands-agents-tools
 uv
