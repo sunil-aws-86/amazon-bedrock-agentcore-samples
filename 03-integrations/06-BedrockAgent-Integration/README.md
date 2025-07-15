@@ -141,12 +141,6 @@ Execute the notebook cells in order:
 
 Once deployed, you can interact with the intelligent agent using natural language queries:
 
-## Live Demo
-
-![Query Video](QueryVideo.mov)
-
-*Watch the intelligent agent in action as it processes natural language queries and interacts with the backend fruit stand API through Bedrock AgentCore Gateway.*
-
 ## Example Interactions
 
 ### Query 1: Check Available Inventory
