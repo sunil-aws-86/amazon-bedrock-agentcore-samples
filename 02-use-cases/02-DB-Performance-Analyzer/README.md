@@ -62,16 +62,53 @@ This directory contains AWS Lambda-based tools for analyzing PostgreSQL database
 ## Prerequisites
 
 ### AWS Services Required
-- AWS Lambda
-- Amazon Bedrock Agent Core
-- AWS Secrets Manager
-- AWS Systems Manager Parameter Store
-- Amazon Aurora PostgreSQL or RDS PostgreSQL
+- **AWS Lambda** - Serverless compute for analysis functions
+- **Amazon Bedrock Agent Core** - AI agent runtime and gateway capabilities
+- **Amazon Aurora PostgreSQL** or **Amazon RDS PostgreSQL** - Target database for analysis
+- **Amazon Cognito User Pool** - Authentication and user management
+- **AWS Secrets Manager** - Secure storage of database credentials
+- **AWS Systems Manager Parameter Store** - Configuration management
+- **AWS IAM** - Identity and access management with appropriate roles and policies
+
+### Authentication & Security Requirements
+- **Cognito User Pool** with configured app client
+- **Cognito Domain** (optional but recommended for hosted UI)
+- **IAM Role** for Bedrock Agent Core Gateway with appropriate permissions
+Attach the below policy to your IAM role
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "iam:PassRole",
+                "bedrock-agentcore:*"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+- **Lambda Execution Role** with permissions for:
+  - Secrets Manager access
+  - Parameter Store access
+  - VPC access (if database is in private subnet)
+  - CloudWatch Logs
 
 ### Database Requirements
-- PostgreSQL 10+ (Aurora PostgreSQL or RDS)
-- `pg_stat_statements` extension enabled
-- Database user with appropriate read permissions
+- **PostgreSQL 14+** (Aurora PostgreSQL or RDS PostgreSQL)
+- **pg_stat_statements extension** enabled for performance analysis
+- **Database user** with appropriate read permissions:
+  - SELECT on system catalogs (pg_stat_*, information_schema)
+  - CONNECT privilege on target databases
+  - Usage on schemas being analyzed
+
+### Network Requirements
+- **VPC Configuration** - Lambda functions must have network access to database
+- **Security Groups** - Proper ingress/egress rules for database connectivity
+- **Subnets** - Lambda functions deployed in subnets with database access
 
 ## Setup Instructions
 
@@ -164,25 +201,6 @@ aws ssm put-parameter \
    ```
 
 ### 5. Gateway and Target Registration
-
-#### Pre-Requisites:
-You IAM role should have access to the below policy
-```
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "VisualEditor0",
-            "Effect": "Allow",
-            "Action": [
-                "iam:PassRole",
-                "bedrock-agentcore:*"
-            ],
-            "Resource": "*"
-        }
-    ]
-}
-```
 
 1. **Create Gateway**:
    ```bash
