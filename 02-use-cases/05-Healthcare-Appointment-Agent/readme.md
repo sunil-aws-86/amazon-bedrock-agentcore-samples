@@ -1,11 +1,28 @@
-# Healthcare use case with Amazon Bedrock AgentCore Gateway
-An AI agent for immunization related healthcare appointments built with **Amazon Bedrock AgentCore Gateway** using the **Model Context Protocol (MCP)** to expose the tools. This AI agent supports enquiring about current immunization status/schedule, checking appointment slots and booking appointments. It also provides personalized experience by knowing the logged in user (adult) and his/her children in the **FHIR R4** (Fast Healthcare Interoperability Resources) database.
+# Healthcare Appointment Agent
 
 ## Overview
+An AI agent for immunization related healthcare appointments built with **Amazon Bedrock AgentCore Gateway** using the **Model Context Protocol (MCP)** to expose the tools. This AI agent supports enquiring about current immunization status/schedule, checking appointment slots and booking appointments. It also provides personalized experience by knowing the logged in user (adult) and his/her children and uses **AWS Healthlake** as **FHIR R4** (Fast Healthcare Interoperability Resources) database.
+
+### Uase case details
+| Information         | Details                                                                                                                             |
+|---------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| Use case type       | Conversational                                                                                                                      |
+| Agent type          | Single Agent                                                                                                                        |
+| Use case components | Amazon Bedrock AgentCore related components: Gateway and Identity                                                                   |
+|  					  | Other Components: Amazon Cognito, AWS Healthlake, Amazon API Gateway and AWS Lambda                                                 |
+|  					  | MCP Tools: MCP tools are exposed to Bedrock AgentCore Gateway using OpenAPI specificati                                             |
+| Use case vertical   | Healthcare                                                                                                                          |
+| Example complexity  | Intermediate                                                                                                                        |
+| SDK used            | Amazon Bedrock AgentCore SDK and boto3								                                                                |
+
+
+### Use case Architecture
 ![Image1](static/healthcare_gateway_flow.png)
 
-## Pre-requisites
-**All of these steps are designed to work in us-east-1 and us-west-2 regions.**
+### Use case key Features
+
+## Prerequisites
+**Note: These steps are designed to work in us-east-1 and us-west-2 regions.**
 
 ### Required IAM Policies
 Please ensure the required IAM permissions. Ignore if running this sample from Admin role.
@@ -64,21 +81,21 @@ As a quick start, you may use the combination of AWS managed IAM policies and an
 	]
 }
 ```
-
+### Others
 * Python 3.12
 * GIT
 * AWS CLI 2.x
 * Claude 3.5 Sonnet model enabled on Amazon Bedrock. Please follow this [guide](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access-modify.html) to set up the same.
 
-## Get the codebase
-Clone the GIT repository OR download and extract the zip file provided to you.
+## Use case Setup
+Clone the GIT repository and navigate the the Healthcare-Appointment-Agent directory.
 
 ```
 git clone <repository-url>
 cd ./02-use-cases/05-Healthcare-Appointment-Agent/
 ```
 
-## Setup Infrastructure
+### Setup Infrastructure
 Create an S3 bucket (**ignore if you would like to use an existing bucket**)
 
 ```
@@ -101,6 +118,7 @@ aws cloudformation create-stack \
                ParameterKey=LambdaS3Key,ParameterValue="lambda_code/fhir-openapi-searchpatient.zip"
 ```
 
+### Install python dependencies and initialize the environment
 Install UV as per this [guide](https://docs.astral.sh/uv/getting-started/installation/)
 
 Create and activate virtual environment
@@ -109,8 +127,6 @@ Create and activate virtual environment
 uv venv --python 3.12
 source ./.venv/bin/activate
 ```
-
-Unzip the latest AWS SDK wheels provided to you and copy in local_wheels directory.
 
 Install dependencies
 
@@ -140,13 +156,14 @@ python init_env.py \
 The **.env** file should look like below.
 ![EnvImage1](static/env_screenshot1.png)
 
-## Create some test data in AWS Healthlake
+### Create some test data in AWS Healthlake
 Run the below python program to ingest the test data as present in **test_data** folder. It may take around ~5 minutes to complete.
 ```
 python create_test_data.py
 ```
 
-## Create Bedrock AgentCore Gateway and Gateway Target
+## Execution Instructions
+### Create Bedrock AgentCore Gateway and Gateway Target
 Open the OpenAPI spec file **fhir-openapi-spec.yaml** and replace **<your API endpoint here>** with **APIEndpoint** as noted down earlier.
 
 Set up Bedrock AgentCore Gateway and Gateway Target based on OpenAPI specification in **fhir-openapi-spec.yaml** file. Note down the Gaeway Id from the output as it would be needed in later steps.
@@ -155,28 +172,28 @@ Set up Bedrock AgentCore Gateway and Gateway Target based on OpenAPI specificati
 python setup_fhir_mcp.py --op_type Create --gateway_name <gateway_name_here>
 ```
 
-## Test with MCP Client
+### Test with MCP Client
 Run Strands Agent by using below steps.
 
 ```
 python test_fhir_mcp.py --gateway_id <gateway_id_here>
 ```
 
-## Test with Strands Agent
+### Run Strands Agent
 Run Strands Agent by using below steps.
 
 ```
 python strands_agent.py --gateway_id <gateway_id_here>
 ```
 
-## Test with Langgraph Agent
+### Run Langgraph Agent
 Run Strands Agent by using below steps.
 
 ```
 python langgraph_agent.py --gateway_id <gateway_id_here>
 ```
 
-## Sample prompts to interact with Agent:
+### Sample prompts to interact with Agent:
 * How can you help?
 * Let us check for immunization schedule first
 * Please find slots for MMR vaccine around the scheduled date
