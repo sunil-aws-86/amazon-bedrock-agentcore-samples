@@ -1,0 +1,129 @@
+{
+    "version": "1.0",
+    "parameters": {
+        "endpoint": {
+            "type": "String",
+            "builtIn": "SDK::Endpoint",
+            "documentation": "Override the endpoint used to send requests"
+        },
+        "region": {
+            "required": true,
+            "type": "String",
+            "default": "us-east-1",
+            "builtIn": "AWS::Region",
+            "documentation": "Specify the region so the endpoint is automatically set."
+        },
+        "stage": {
+            "required": false,
+            "type": "String",
+            "documentation": "Specify the stage (gamma|preview) so the endpoint is automatically set"
+        }
+    },
+    "rules": [
+        {
+            "type": "endpoint",
+            "conditions": [
+                {
+                    "fn": "isSet",
+                    "argv": [
+                        {
+                            "ref": "endpoint"
+                        }
+                    ]
+                }
+            ],
+            "endpoint": {
+                "url": "{endpoint}",
+                "properties": {
+                    "authSchemes": [
+                        {
+                            "name": "sigv4",
+                            "signingRegion": "{region}"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "endpoint",
+            "conditions": [
+                {
+                    "fn": "isSet",
+                    "argv": [
+                        {
+                            "ref": "stage"
+                        }
+                    ]
+                },
+                {
+                    "fn": "stringEquals",
+                    "argv": [
+                        {
+                            "ref": "stage"
+                        },
+                        "gamma"
+                    ]
+                }
+            ],
+            "endpoint": {
+                "url": "https://{region}.gamma.agent-credential-provider.cognito.aws.dev",
+                "properties": {
+                    "authSchemes": [
+                        {
+                            "name": "sigv4",
+                            "signingRegion": "{region}"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "endpoint",
+            "conditions": [
+                {
+                    "fn": "isSet",
+                    "argv": [
+                        {
+                            "ref": "stage"
+                        }
+                    ]
+                },
+                {
+                    "fn": "stringEquals",
+                    "argv": [
+                        {
+                            "ref": "stage"
+                        },
+                        "preview"
+                    ]
+                }
+            ],
+            "endpoint": {
+                "url": "https://us-east-1.preview.agent-credential-provider.cognito.aws.dev",
+                "properties": {
+                    "authSchemes": [
+                        {
+                            "name": "sigv4",
+                            "signingRegion": "us-east-1"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "endpoint",
+            "conditions": [],
+            "endpoint": {
+                "url": "https://{region}.gamma.agent-credential-provider.cognito.aws.dev",
+                "properties": {
+                    "authSchemes": [
+                        {
+                            "name": "sigv4",
+                            "signingRegion": "{region}"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}
