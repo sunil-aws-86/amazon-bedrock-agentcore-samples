@@ -331,12 +331,36 @@ async def health_check(api_key: str = Depends(_validate_api_key)):
 if __name__ == "__main__":
     import uvicorn
     import sys
+    import argparse
     from pathlib import Path
 
     # Add parent directory to path to import config_utils
     sys.path.append(str(Path(__file__).parent.parent))
     from config_utils import get_server_port
 
-    port = get_server_port("runbooks")
-    logging.info(f"Starting Runbooks server on port {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    parser = argparse.ArgumentParser(description="Runbooks API Server")
+    parser.add_argument("--host", type=str, required=True, 
+                       help="Host to bind to (REQUIRED - must match SSL certificate hostname if using SSL)")
+    parser.add_argument("--ssl-keyfile", type=str, help="Path to SSL private key file")
+    parser.add_argument("--ssl-certfile", type=str, help="Path to SSL certificate file")
+    parser.add_argument("--port", type=int, help="Port to bind to (overrides config)")
+    
+    args = parser.parse_args()
+    
+    port = args.port if args.port else get_server_port("runbooks")
+    
+    # Configure SSL if both cert files are provided
+    ssl_config = {}
+    if args.ssl_keyfile and args.ssl_certfile:
+        ssl_config = {
+            "ssl_keyfile": args.ssl_keyfile,
+            "ssl_certfile": args.ssl_certfile
+        }
+        protocol = "HTTPS"
+        logging.warning(f"⚠️  SSL CERTIFICATE HOSTNAME WARNING: Ensure your SSL certificate is valid for hostname '{args.host}'")
+        logging.warning(f"⚠️  If using self-signed certificates, generate with: openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN={args.host}'")
+    else:
+        protocol = "HTTP"
+    
+    logging.info(f"Starting Runbooks server on {protocol}://{args.host}:{port}")
+    uvicorn.run(app, host=args.host, port=port, **ssl_config)

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # MCP Commands Script
-# This script contains various MCP commands for testing Genesis Gateway
+# This script contains various MCP commands for testing AgentCore Gateway
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

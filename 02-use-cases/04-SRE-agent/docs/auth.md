@@ -1,6 +1,6 @@
 # Authentication and Authorization Setup
 
-This document covers the setup requirements for IAM permissions and identity provider (IDP) configuration needed for Genesis Gateway.
+This document covers the setup requirements for IAM permissions and identity provider (IDP) configuration needed for AgentCore Gateway.
 
 ## IAM Permissions Setup
 
@@ -69,9 +69,9 @@ If the Gateway Target is of Smithy Target type:
 - Execution role must include any AWS permissions for the tools/APIs you wish to invoke
 - Example: Adding a gateway target for S3 → add relevant S3 permissions to the role
 
-### Trust Policy for Genesis Service
+### Trust Policy for AgentCore Service
 
-You need to trust the Genesis service's beta account to assume the role:
+You need to trust the AgentCore service's beta account to assume the role:
 
 ```json
 {
@@ -101,7 +101,7 @@ If the Lambda is in another account, configure a resource-based policy (RBP) on 
             "Sid": "cross-account-access",
             "Effect": "Allow",
             "Principal": {
-                "AWS": "arn:aws:iam::<gateway-account>:role/GenesisBetaLambdaExecuteRole"
+                "AWS": "arn:aws:iam::<gateway-account>:role/AgentCoreBetaLambdaExecuteRole"
             },
             "Action": "lambda:InvokeFunction",
             "Resource": "arn:aws:lambda:us-west-2:<account-with-lambda>:function:TestLambda"
@@ -114,7 +114,7 @@ If the Lambda is in another account, configure a resource-based policy (RBP) on 
 
 ### Important: Cognito vs Auth0/Okta Authentication Differences
 
-**Critical Distinction for Genesis Gateway Configuration:**
+**Critical Distinction for AgentCore Gateway Configuration:**
 
 | Provider | JWT Claim Used | Gateway Configuration | Token Contains |
 |----------|---------------|---------------------|----------------|
@@ -124,7 +124,7 @@ If the Lambda is in another account, configure a resource-based policy (RBP) on 
 
 **Why this matters:**
 - Cognito client credentials tokens do NOT include an `aud` (audience) claim
-- Genesis Gateway with `allowedAudience` will reject Cognito tokens (401 error)
+- AgentCore Gateway with `allowedAudience` will reject Cognito tokens (401 error)
 - For Cognito, you MUST use `allowedClients` with your app client ID
 - For Auth0/Okta, you MUST use `allowedAudience` with your API identifier
 
@@ -147,7 +147,7 @@ Create a machine-to-machine user pool:
 # Create user pool
 aws cognito-idp create-user-pool \
     --region us-west-2 \
-    --pool-name "test-genesis-user-pool"
+    --pool-name "test-agentcore-user-pool"
 
 # List user pools to get the pool ID
 aws cognito-idp list-user-pools \
@@ -167,8 +167,8 @@ https://cognito-idp.us-west-2.amazonaws.com/<UserPoolId>/.well-known/openid-conf
 aws cognito-idp create-resource-server \
     --region us-west-2 \
     --user-pool-id <UserPoolId> \
-    --identifier "test-genesis-server" \
-    --name "TestGenesisServer" \
+    --identifier "test-agentcore-server" \
+    --name "TestAgentCoreServer" \
     --scopes '[{"ScopeName":"read","ScopeDescription":"Read access"}, {"ScopeName":"write","ScopeDescription":"Write access"}]'
 ```
 
@@ -178,10 +178,10 @@ aws cognito-idp create-resource-server \
 aws cognito-idp create-user-pool-client \
     --region us-west-2 \
     --user-pool-id <UserPoolId> \
-    --client-name "test-genesis-client" \
+    --client-name "test-agentcore-client" \
     --generate-secret \
     --allowed-o-auth-flows client_credentials \
-    --allowed-o-auth-scopes "test-genesis-server/read" "test-genesis-server/write" \
+    --allowed-o-auth-scopes "test-agentcore-server/read" "test-agentcore-server/write" \
     --allowed-o-auth-flows-user-pool-client \
     --supported-identity-providers "COGNITO"
 ```

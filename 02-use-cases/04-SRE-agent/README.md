@@ -191,9 +191,47 @@ Provides access to documented procedures, troubleshooting guides, and best pract
 
 ### Prerequisites
 
-Before installing the SRE Agent, ensure you have the following prerequisites in place. The system requires Python 3.12 or higher for optimal performance and compatibility with the latest language features. You'll need the `uv` package manager, which provides fast, reliable Python package management and is the recommended tool for this project.
+> **⚠️ IMPORTANT:** Amazon Bedrock AgentCore Gateway **only works with HTTPS endpoints**. You must have valid SSL certificates for your backend servers.
 
-For AI model access, you'll need either an Anthropic API key for direct Claude access or AWS credentials configured for Amazon Bedrock. The system is designed to work with Claude 3.5 Sonnet, which provides the best balance of performance and cost for infrastructure operations.
+Before installing the SRE Agent, ensure you have the following prerequisites in place:
+
+#### System Requirements
+- **Python 3.12 or higher** for optimal performance and compatibility
+- **`uv` package manager** for fast, reliable Python package management
+- **EC2 Instance**: We recommend a `t3.xlarge` instance or larger for running the SRE Agent backend servers
+
+#### SSL Certificate Requirements
+You **must** have valid SSL certificates for the machine running this solution. The AgentCore Gateway requires HTTPS endpoints for all backend services.
+
+**SSL Certificate Setup:**
+You need an HTTPS certificate and private key to proceed. If you use `your-backend-domain.com` as the domain for your backend servers, then you will need an SSL certificate for `your-backend-domain.com` and your services will be accessible to AgentCore Gateway as `https://your-backend-domain.com:8011`, `https://your-backend-domain.com:8012`, etc.
+
+**Recommended Setup:**
+1. **Use an EC2 instance** (recommended: `t3.xlarge`) with a public IP and domain name
+2. **Generate SSL certificates using Let's Encrypt, no-ip, or other similar services**
+3. **Place the SSL certificate and private key files** in `/etc/ssl/certs/` and `/etc/ssl/private/` folders respectively on your EC2 machine
+
+**Example file locations:**
+- SSL Certificate: `/etc/ssl/certs/fullchain.pem`
+- Private Key: `/etc/ssl/private/privkey.pem`
+
+**⚠️ Important: OpenAPI Specification Configuration**
+Before starting the backend servers, you **must** update the OpenAPI specification files in `backend/openapi_specs/` to replace `https://your-backend-domain.com` with your actual domain name for which you have the SSL certificate. This is required because AgentCore needs a publicly reachable domain to connect to the backend services.
+
+Update these files:
+- `backend/openapi_specs/k8s_api.yaml`
+- `backend/openapi_specs/logs_api.yaml`
+- `backend/openapi_specs/metrics_api.yaml`
+- `backend/openapi_specs/runbooks_api.yaml`
+
+Replace `https://your-backend-domain.com:XXXX` with your actual domain (e.g., `https://mydomain.com:8011`).
+
+#### AI Model Access
+You'll need either:
+- **Anthropic API key** for direct Claude access, OR
+- **AWS credentials** configured for Amazon Bedrock access
+
+The system is designed to work with Claude 3.5 Sonnet, which provides the best balance of performance and cost for infrastructure operations.
 
 ### Installation
 
@@ -212,7 +250,9 @@ uv pip install -e .
 
 ### Quick Start
 
-The fastest way to experience the SRE Agent is through our demo environment, which provides realistic mock data without requiring access to real infrastructure:
+The fastest way to experience the SRE Agent is through our demo environment, which provides realistic mock data without requiring access to real infrastructure.
+
+> **📋 Note:** Ensure you have completed the SSL certificate setup from the Prerequisites section before proceeding.
 
 ```bash
 # Step 1: Configure environment variables
@@ -220,23 +260,42 @@ cp .env.example sre_agent/.env
 # Edit sre_agent/.env and add your Anthropic API key:
 # ANTHROPIC_API_KEY=sk-ant-your-key-here
 
-# Step 2: Start the demo backend servers
+# Step 2: Update OpenAPI specifications with your domain
+# Replace 'your-backend-domain.com' with your actual domain in all OpenAPI spec files
+sed -i 's/your-backend-domain.com/mydomain.com/g' backend/openapi_specs/*.yaml
+# Example: Replace 'mydomain.com' with your actual domain name
+
+# Step 3: Get your EC2 instance private IP for server binding
+# Get session token for IMDSv2
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s)
+
+# Get private IP (for server binding)
+PRIVATE_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" \
+  -s http://169.254.169.254/latest/meta-data/local-ipv4)
+
+echo "Private IP: $PRIVATE_IP"
+
+# Step 4: Start the demo backend servers with SSL
 cd backend
-./scripts/start_demo_backend.sh
+./scripts/start_demo_backend.sh \
+  --host $PRIVATE_IP \
+  --ssl-keyfile /etc/ssl/private/privkey.pem \
+  --ssl-certfile /etc/ssl/certs/fullchain.pem
 cd ..
 
-# Step 3: Create and configure the AgentCore Gateway
+# Step 5: Create and configure the AgentCore Gateway
 cd gateway
 ./create_gateway.sh
 ./mcp_cmds.sh
 cd ..
 
-# Step 4: Update the gateway URI in agent configuration
+# Step 6: Update the gateway URI in agent configuration
 # Copy the gateway URI to the agent config file
 GATEWAY_URI=$(cat gateway/.gateway_uri)
 sed -i "s|uri: \".*\"|uri: \"$GATEWAY_URI\"|" sre_agent/config/agent_config.yaml
 
-# Step 5: Copy the gateway access token to your .env file
+# Step 7: Copy the gateway access token to your .env file
 # Remove any existing GATEWAY_ACCESS_TOKEN line and add the new one
 sed -i '/^GATEWAY_ACCESS_TOKEN=/d' sre_agent/.env
 echo "GATEWAY_ACCESS_TOKEN=$(cat gateway/.access_token)" >> sre_agent/.env
@@ -246,7 +305,7 @@ echo "GATEWAY_ACCESS_TOKEN=$(cat gateway/.access_token)" >> sre_agent/.env
 # Copy the token from gateway/.access_token and update sre_agent/.env manually:
 # GATEWAY_ACCESS_TOKEN=<your_token_here>
 
-# Step 6: Run your first investigation
+# Step 8: Run your first investigation
 sre-agent --prompt "What's the status of the database pods?"
 ```
 
@@ -416,7 +475,7 @@ user_pool_id: "YOUR_USER_POOL_ID"
 client_id: "YOUR_CLIENT_ID"
 
 # S3 Configuration
-s3_bucket: "your-genesis-schemas-bucket"
+s3_bucket: "your-agentcore-schemas-bucket"
 s3_path_prefix: "devops-multiagent-demo"  # Path prefix for OpenAPI schema files
 
 # Provider Configuration
@@ -439,12 +498,28 @@ The SRE Agent includes a demo environment that simulates infrastructure operatio
 
 ### Starting the Demo Backend
 
+> **🔒 SSL Requirement:** The backend servers must run with HTTPS when using AgentCore Gateway. Use the SSL commands from the Quick Start section.
+
 The demo backend consists of four specialized API servers that provide realistic responses for different infrastructure domains:
 
 ```bash
-# Start all demo servers with one command
+# Start all demo servers with SSL (recommended)
 cd backend
-./scripts/start_demo_backend.sh
+
+# Get your private IP for server binding
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s)
+PRIVATE_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" \
+  -s http://169.254.169.254/latest/meta-data/local-ipv4)
+
+# Start with SSL certificates
+./scripts/start_demo_backend.sh \
+  --host $PRIVATE_IP \
+  --ssl-keyfile /etc/ssl/private/privkey.pem \
+  --ssl-certfile /etc/ssl/certs/fullchain.pem
+
+# Alternative: Start without SSL (testing only - not compatible with AgentCore Gateway)
+# ./scripts/start_demo_backend.sh --host 0.0.0.0
 
 # The script starts four API servers:
 # - Kubernetes API (port 8011): Simulates a K8s cluster with multiple namespaces

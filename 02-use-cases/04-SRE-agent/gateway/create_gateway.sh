@@ -176,7 +176,7 @@ python generate_token.py
 
 echo ""
 # Build the command with multiple S3 URIs and descriptions
-echo "Creating Genesis Gateway with multiple S3 targets for DevOps Multi-Agent Demo..."
+echo "Creating AgentCore Gateway with multiple S3 targets for DevOps Multi-Agent Demo..."
 echo "APIs to be configured:"
 for i in "${!S3_URIS[@]}"; do
     api_name=$(basename "${S3_URIS[$i]}" .yaml)
@@ -227,4 +227,4 @@ echo "   - OpenAPI schemas uploaded to S3: ${#API_SCHEMAS[@]} files"
 echo "   - Gateway created with ${#S3_URIS[@]} API targets"
 echo "   - APIs: Kubernetes, Logs, Metrics, Runbooks"
 echo "   - All targets configured with Cognito authentication"
-echo "   - Ready for MCP integration with Genesis Gateway"
+echo "   - Ready for MCP integration with AgentCore Gateway"

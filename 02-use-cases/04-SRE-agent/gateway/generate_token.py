@@ -3,7 +3,7 @@
 Cognito Token Generator
 
 This script generates OAuth2 access tokens from Amazon Cognito using client credentials
-and saves them to a .access_token file for use with Genesis Gateway.
+and saves them to a .access_token file for use with AgentCore Gateway.
 """
 
 import argparse

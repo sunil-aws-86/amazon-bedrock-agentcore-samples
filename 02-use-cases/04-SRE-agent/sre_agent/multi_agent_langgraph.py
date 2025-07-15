@@ -249,7 +249,7 @@ async def create_multi_agent_system(
         client = create_mcp_client()
         all_mcp_tools = await client.get_tools()
 
-        # Don't filter out x-amz-genesis-search as it's a global tool
+        # Don't filter out x-amz-agentcore-search as it's a global tool
         mcp_tools = all_mcp_tools
 
         logger.info(f"Retrieved {len(mcp_tools)} tools from MCP")

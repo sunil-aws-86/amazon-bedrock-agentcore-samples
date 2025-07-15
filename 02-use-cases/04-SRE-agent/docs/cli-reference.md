@@ -1,6 +1,6 @@
 # Command Line Arguments Reference
 
-This document describes all command line arguments available for the Genesis Gateway Management Tool.
+This document describes all command line arguments available for the AgentCore Gateway Management Tool.
 
 ## Usage
 
@@ -19,7 +19,7 @@ python main.py [-h] [--region REGION] [--endpoint-url ENDPOINT_URL] --role-arn R
 
 ### `gateway_name`
 - **Type**: String
-- **Description**: Name for the Genesis Gateway
+- **Description**: Name for the AgentCore Gateway
 
 ## AWS Configuration
 
@@ -58,7 +58,7 @@ python main.py [-h] [--region REGION] [--endpoint-url ENDPOINT_URL] --role-arn R
 
 ### `--description-for-gateway`
 - **Type**: String
-- **Default**: "Genesis Gateway created via SDK"
+- **Default**: "AgentCore Gateway created via SDK"
 - **Description**: Gateway description
 
 ### `--description-for-target`
