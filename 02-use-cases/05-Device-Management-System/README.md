@@ -52,6 +52,30 @@ The Device Management Lambda function provides the following capabilities:
 
 ## Setup and Deployment
 
+### Pre-Requisites
+
+#### Authentication & Security Requirements
+- **Cognito User Pool** with configured app client
+- **Cognito Domain** (optional but recommended for hosted UI)
+- **IAM Role** for Bedrock Agent Core Gateway with appropriate permissions
+Attach the below policy to your IAM role
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "iam:PassRole",
+                "bedrock-agentcore:*"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
 ### 1. Environment Configuration
 
 Create a `.env` file in the project root with the following variables:
@@ -102,26 +126,7 @@ The deployment script performs the following actions:
 
 ### 4. Create a Gateway (Optional if you want to use the existing gateway)
 
-#### Pre-Requisites:
-You IAM role should have access to the below policy
-```
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "VisualEditor0",
-            "Effect": "Allow",
-            "Action": [
-                "iam:PassRole",
-                "bedrock-agentcore:*"
-            ],
-            "Resource": "*"
-        }
-    ]
-}
-```
-
-If you need to create a new gateway for the MCP server, use the provided script:
+To create a new gateway, execute the below script:
 
 ```bash
 python create_gateway.py
@@ -141,7 +146,7 @@ Make sure to update the following variables in your `.env` file before running t
 
 ### 5. Create Gateway Target
 
-After deploying the Lambda function, create a gateway target to expose the function as an MCP server:
+After deploying the Lambda function, create a gateway target to expose the Lambdafunction as targets:
 
 ```bash
 python device-management-target.py
