@@ -464,7 +464,7 @@ def view_recordings(s3_location):
                                             
                         except Exception as e:
                             print(f"⚠️ Error processing file {key}: {e}")
-                            import rt traceback
+                            import traceback
                             traceback.print_exc()
                     
                     print(f"✅ Loaded {len(all_events)} events")
