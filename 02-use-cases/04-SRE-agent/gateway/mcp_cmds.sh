@@ -25,7 +25,6 @@ fi
 
 echo "✅ Found .access_token and .gateway_uri files"
 echo ""
-
 # List available tools
 echo "📋 Listing available tools..."
 TOOLS_RESPONSE=$(curl -vvv -sS --request POST --header 'Content-Type: application/json' \

@@ -3,11 +3,15 @@ revision = 1
 requires-python = ">=3.12"
 
 [[package]]
-name = "amzn-awsagentcredentialproviderservicebotocoreclient"
-version = "1.0"
-source = { path = "gateway/amzn_AWSAgentCredentialProviderServiceBotocoreClient-1.0-py3-none-any.whl" }
+name = "agentcore"
+version = "0.1.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a6/07/e8f4d324cf5bd279028595c3a962f3526f18d783f3895b230c9dfb862e5b/agentcore-0.1.6.tar.gz", hash = "sha256:558f66c66c3817cfdfca57ee245e38ddb3204667dc0b2593d538b2d3b07c4254", size = 1669 }
 wheels = [
-    { filename = "amzn_awsagentcredentialproviderservicebotocoreclient-1.0-py3-none-any.whl", hash = "sha256:9ce6c3bad1897048a87764f34c0c04f07261a992467b6e427c6e836e219360c5" },
+    { url = "https://files.pythonhosted.org/packages/67/3f/1cbac802fef781bc59143e7a6ba3f2ae557bd7e75e0550d3afae6aec61e5/agentcore-0.1.6-py3-none-any.whl", hash = "sha256:9aacbd88aaf4868b881c0a14b7d45edeb075117d0f3667071dd3cf0ccf58c0c6", size = 2181 },
 ]
 
 [[package]]
@@ -63,7 +67,7 @@ wheels = [
 [[package]]
 name = "awscli"
 version = "1.41.3"
-source = { path = "gateway/awscli-1.41.3-py3-none-any.whl" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "colorama" },
@@ -72,18 +76,9 @@ dependencies = [
     { name = "rsa" },
     { name = "s3transfer" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/95/ca/c51f088c5f1480e5a390a2383bcd41226c343bdbbb6068aace89035097b8/awscli-1.41.3.tar.gz", hash = "sha256:16242adf9f6688012ddbd5ecb3641712cec5d552dfe6576767eeeacd71d5efaa", size = 1904644 }
 wheels = [
-    { filename = "awscli-1.41.3-py3-none-any.whl", hash = "sha256:404e06ee6f30509437e547372c05e3b8faf9188ad61a1112eae701a6d55e7596" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "botocore", specifier = "==1.39.3" },
-    { name = "colorama", specifier = ">=0.2.5,<0.4.7" },
-    { name = "docutils", specifier = ">=0.18.1,<=0.19" },
-    { name = "pyyaml", specifier = ">=3.10,<6.1" },
-    { name = "rsa", specifier = ">=3.1.2,<4.8" },
-    { name = "s3transfer", specifier = ">=0.13.0,<0.14.0" },
+    { url = "https://files.pythonhosted.org/packages/c9/2d/54ed3737d5c304a50b9b87d5f5bec00832e6e1f310d1c3a9e5dac0199fe4/awscli-1.41.3-py3-none-any.whl", hash = "sha256:8c46d5813ba07283121d4df3659fe712ceff76897d3257be2b394bb58ea45dda", size = 4701430 },
 ]
 
 [[package]]
@@ -128,47 +123,30 @@ wheels = [
 [[package]]
 name = "boto3"
 version = "1.39.3"
-source = { path = "gateway/boto3-1.39.3-py3-none-any.whl" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/02/42/712a74bb86d06538c55067a35b8a82c57aa303eba95b2b1ee91c829288f4/boto3-1.39.3.tar.gz", hash = "sha256:0a367106497649ae3d8a7b571b8c3be01b7b935a0fe303d4cc2574ed03aecbb4", size = 111838 }
 wheels = [
-    { filename = "boto3-1.39.3-py3-none-any.whl", hash = "sha256:3db2291e88d81edc44d23bd1cb94ee2d8bf861f51ee5f4f9b02e1f044fbda7d3" },
+    { url = "https://files.pythonhosted.org/packages/15/70/723d2ab259aeaed6c96e5c1857ebe7d474ed9aa8f487dea352c60f33798f/boto3-1.39.3-py3-none-any.whl", hash = "sha256:056cfa2440fe1a157a7c2be897c749c83e1a322144aa4dad889f2fca66571019", size = 139906 },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "botocore", specifier = ">=1.39.3,<1.40.0" },
-    { name = "botocore", extras = ["crt"], marker = "extra == 'crt'", specifier = ">=1.21.0,<2.0a0" },
-    { name = "jmespath", specifier = ">=0.7.1,<2.0.0" },
-    { name = "s3transfer", specifier = ">=0.13.0,<0.14.0" },
-]
-provides-extras = ["crt"]
 
 [[package]]
 name = "botocore"
 version = "1.39.3"
-source = { path = "gateway/botocore-1.39.3-py3-none-any.whl" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/60/66/96e89cc261d75f0b8125436272c335c74d2a39df84504a0c3956adcd1301/botocore-1.39.3.tar.gz", hash = "sha256:da8f477e119f9f8a3aaa8b3c99d9c6856ed0a243680aa3a3fbbfc15a8d4093fb", size = 14132316 }
 wheels = [
-    { filename = "botocore-1.39.3-py3-none-any.whl", hash = "sha256:cdbdaaaaacaaa67e132f664e1b21a4e4642d3bad83178391083bdb1ec9a590ad" },
+    { url = "https://files.pythonhosted.org/packages/53/e4/3698dbb037a44d82a501577c6e3824c19f4289f4afbcadb06793866250d8/botocore-1.39.3-py3-none-any.whl", hash = "sha256:66a81cfac18ad5e9f47696c73fdf44cdbd8f8ca51ab3fca1effca0aabf61f02f", size = 13791724 },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "awscrt", marker = "extra == 'crt'", specifier = "==0.23.8" },
-    { name = "jmespath", specifier = ">=0.7.1,<2.0.0" },
-    { name = "python-dateutil", specifier = ">=2.1,<3.0.0" },
-    { name = "urllib3", marker = "python_full_version < '3.10'", specifier = ">=1.25.4,<1.27" },
-    { name = "urllib3", marker = "python_full_version >= '3.10'", specifier = ">=1.25.4,!=2.2.0,<3" },
-]
-provides-extras = ["crt"]
 
 [[package]]
 name = "certifi"
@@ -1341,7 +1319,7 @@ name = "sre-agent"
 version = "1.0.0"
 source = { editable = "." }
 dependencies = [
-    { name = "amzn-awsagentcredentialproviderservicebotocoreclient" },
+    { name = "agentcore" },
     { name = "anthropic" },
     { name = "awscli" },
     { name = "boto3" },
@@ -1378,13 +1356,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "amzn-awsagentcredentialproviderservicebotocoreclient", path = "gateway/amzn_AWSAgentCredentialProviderServiceBotocoreClient-1.0-py3-none-any.whl" },
+    { name = "agentcore" },
     { name = "anthropic", specifier = ">=0.57.1" },
-    { name = "awscli", path = "gateway/awscli-1.41.3-py3-none-any.whl" },
+    { name = "awscli" },
     { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.7.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
-    { name = "boto3", path = "gateway/boto3-1.39.3-py3-none-any.whl" },
-    { name = "botocore", path = "gateway/botocore-1.39.3-py3-none-any.whl" },
+    { name = "boto3" },
+    { name = "botocore" },
     { name = "click", specifier = ">=8.1.0" },
     { name = "fastapi", specifier = ">=0.104.0" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=6.0.0" },

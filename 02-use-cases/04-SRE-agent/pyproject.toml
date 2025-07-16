@@ -29,10 +29,10 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "anthropic>=0.57.1",
     "python-multipart>=0.0.6",
-    "boto3 @ file:///home/ubuntu/repos/sre-agent/gateway/boto3-1.39.3-py3-none-any.whl",
-    "botocore @ file:///home/ubuntu/repos/sre-agent/gateway/botocore-1.39.3-py3-none-any.whl",
-    "awscli @ file:///home/ubuntu/repos/sre-agent/gateway/awscli-1.41.3-py3-none-any.whl",
-    "amzn-AWSAgentCredentialProviderServiceBotocoreClient @ file:///home/ubuntu/repos/sre-agent/gateway/amzn_AWSAgentCredentialProviderServiceBotocoreClient-1.0-py3-none-any.whl"
+    "boto3",
+    "botocore",
+    "awscli",
+    "agentcore"
 ]
 
 [project.optional-dependencies]

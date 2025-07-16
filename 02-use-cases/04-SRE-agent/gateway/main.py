@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 
@@ -28,7 +29,7 @@ logging.basicConfig(
 
 def _create_agentcore_client(region: str, endpoint_url: str) -> Any:
     """
-    Create and return an AgentCore client for interacting with the AWS service.
+    Create and return an AgentCore client for interacting with the AWS service with retry configuration.
 
     Args:
         region: AWS region name
@@ -37,9 +38,20 @@ def _create_agentcore_client(region: str, endpoint_url: str) -> Any:
     Returns:
         Configured boto3 client for bedrock-agentcore-control
     """
+    # Custom retry configuration
+    retry_config = Config(
+        retries={
+            'max_attempts': 10,
+            'mode': 'adaptive'
+        }
+    )
+    
     try:
         client = boto3.client(
-            "bedrock-agentcore-control", region_name=region, endpoint_url=endpoint_url
+            "bedrock-agentcore-control", 
+            region_name=region, 
+            endpoint_url=endpoint_url,
+            config=retry_config
         )
         logging.info(f"Created AgentCore client for region {region}")
         return client
