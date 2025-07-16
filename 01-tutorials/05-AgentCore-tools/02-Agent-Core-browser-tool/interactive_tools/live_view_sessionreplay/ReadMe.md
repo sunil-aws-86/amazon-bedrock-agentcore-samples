@@ -1,10 +1,10 @@
-# Genesis SDK Tools Examples
+# Amazon Bedrock AgentCore SDK Tools Examples
 
-This folder contains examples demonstrating the use of Genesis SDK tools:
+This folder contains examples demonstrating the use of Amazon Bedrock AgentCore SDK tools:
 
 ## Browser Tools
 
-* `browser_viewer_replay.py` - Genesis Browser Live Viewer with proper display sizing support.
+* `browser_viewer_replay.py` - Amazon Bedrock AgentCore Browser Live Viewer with proper display sizing support.
 * `browser_interactive_session.py` - Complete end-to-end browser experience with live viewing, recording, and replay capabilities.
 * `session_replay_viewer.py` - Viewer for replaying recorded browser sessions.
 * `view_recordings.py` - Standalone script to view recorded sessions from S3.
@@ -16,7 +16,7 @@ This folder contains examples demonstrating the use of Genesis SDK tools:
 pip install -r requirements.txt
 ```
 
-Required packages: fastapi, uvicorn, rich, boto3, genesis
+Required packages: fastapi, uvicorn, rich, boto3, bedrock-agentcore
 
 ### AWS Credentials
 Ensure AWS credentials are configured:
@@ -35,11 +35,6 @@ Run a complete end-to-end workflow that includes live browser viewing, automatic
 - Automatic session recording to S3
 - Integrated session replay viewer for watching recordings
 
-### Running the Complete Experience
-```bash
-python -m src.genesissdkexamples.interactive_tools.live_view_sessionreplay.browser_interactive_session
-```
-
 ### How It Works
 1. The script creates a browser with recording enabled
 2. A browser session is started and displayed in your local browser
@@ -49,10 +44,9 @@ python -m src.genesissdkexamples.interactive_tools.live_view_sessionreplay.brows
 
 ### Environment Variables
 - `AWS_REGION` - AWS region (default: us-west-2)
-- `GENESIS_ROLE_ARN` - IAM role ARN for browser execution (default: automatically generated from account ID)
+- `AGENTCORE_ROLE_ARN` - IAM role ARN for browser execution (default: automatically generated from account ID)
 - `RECORDING_BUCKET` - S3 bucket for recordings (default: session-record-test-{ACCOUNT_ID})
 - `RECORDING_PREFIX` - S3 prefix for recordings (default: replay-data)
-- `GENESIS_STAGE` - Genesis stage to use (default: gamma)
 
 ### Required IAM Permissions
 ```json
