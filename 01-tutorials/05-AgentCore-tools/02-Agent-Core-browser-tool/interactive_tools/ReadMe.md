@@ -1,11 +1,11 @@
-# Genesis SDK Tools Examples
+# Bedrock Agentcore SDK Tools Examples
 
 This folder contains examples demonstrating the use of Genesis SDK tools:
 
 ## Browser Tools
 
-* `browser_viewer.py` - Genesis Browser Live Viewer with proper display sizing support.
-* `run_live_viewer.py` - Standalone script to run the Genesis Browser Live Viewer.
+* `browser_viewer.py` - Bedrock Agentcore Browser Live Viewer with proper display sizing support.
+* `run_live_viewer.py` - Standalone script to run the Bedrock Agentcore Browser Live Viewer.
 
 ## Code Interpreter Tools
 
@@ -30,29 +30,6 @@ aws configure
 
 Real-time browser viewing capability using Amazon DCV technology.
 
-### Basic Usage
-```python
-from genesis.tools import BrowserClient
-from src.genesissdkexamples.interactive_tools import BrowserViewerServer
-
-# Create browser session
-browser_client = BrowserClient(region="us-west-2")
-browser_client.start()
-
-# Wait for initialization (temporary requirement, will be removed after 6/20)
-import time
-time.sleep(20)
-
-# Start viewer
-viewer = BrowserViewerServer(browser_client, port=8000)
-viewer.start(open_browser=True)
-```
-
-### Running the Demo
-```bash
-python -m src.genesissdkexamples.interactive_tools.run_live_viewer
-```
-
 ### Features
 
 **Display Size Control**
@@ -66,7 +43,6 @@ python -m src.genesissdkexamples.interactive_tools.run_live_viewer
 - Release Control: Return control to automation
 
 ### Configuration
-- `GENESIS_STAGE`: Set to 'alpha', 'beta', 'gamma', or 'prod' (default: gamma)
 - Custom ports: `BrowserViewerServer(browser_client, port=8080)`
 
 ## Browser Session Recording and Replay
