@@ -642,7 +642,7 @@ class S3DataSource(DataSource):
         self.s3_client = boto3.client('s3')
         self.bucket = bucket
         self.prefix = prefix.rstrip('/')
-        self.temp_dir = Path(tempfile.mkdtemp(prefix=‘bedrock_agentcore_replay_'))
+        self.temp_dir = Path(tempfile.mkdtemp(prefix="bedrock_agentcore_replay_"))
         
         console.print(f"[cyan]Using S3 location:[/cyan]")
         console.print(f"  Bucket: {bucket}")
