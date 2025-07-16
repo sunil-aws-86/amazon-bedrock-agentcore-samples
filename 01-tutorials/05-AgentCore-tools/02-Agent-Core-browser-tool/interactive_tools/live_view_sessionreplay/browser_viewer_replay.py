@@ -61,7 +61,7 @@ class BrowserViewerServer:
         # Create bedrock-agentcore-browser-viewer.js with enhanced debugging
         js_content = '''// Bedrock-agentcore Browser Viewer Module with Enhanced Debugging
 import dcv from "../../dcvjs/dcv.js";
-export class Bedrock-agentcoreLiveViewer {
+export class BedrockAgentcoreLiveViewer {
     constructor(presignedUrl, containerId = 'dcv-display') {
         this.displayLayoutRequested = false;
         this.presignedUrl = presignedUrl;
@@ -69,26 +69,26 @@ export class Bedrock-agentcoreLiveViewer {
         this.connection = null;
         this.desiredWidth = 1600;
         this.desiredHeight = 900;
-        console.log('[Bedrock-agentcoreLiveViewer] Initialized with URL:', presignedUrl);
+        console.log('[BedrockAgentcoreLiveViewer] Initialized with URL:', presignedUrl);
     }
 
     httpExtraSearchParamsCallBack(method, url, body, returnType) {
-        console.log('[Bedrock-agentcoreLiveViewer] httpExtraSearchParamsCallBack called:', { method, url, returnType });
+        console.log('[BedrockAgentcoreLiveViewer] httpExtraSearchParamsCallBack called:', { method, url, returnType });
         const parsedUrl = new URL(this.presignedUrl);
         const params = parsedUrl.searchParams;
-        console.log('[Bedrock-agentcoreLiveViewer] Returning auth params:', params.toString());
+        console.log('[BedrockAgentcoreLiveViewer] Returning auth params:', params.toString());
         return params;
     }
     
     displayLayoutCallback(serverWidth, serverHeight, heads) {
-        console.log(`[Bedrock-agentcoreLiveViewer] Display layout callback: ${serverWidth}x${serverHeight}`);
+        console.log(`[BedrockAgentcoreLiveViewer] Display layout callback: ${serverWidth}x${serverHeight}`);
         
         const display = document.getElementById(this.containerId);
         display.style.width = `${this.desiredWidth}px`;
         display.style.height = `${this.desiredHeight}px`;
 
         if (this.connection) {
-            console.log(`[Bedrock-agentcoreLiveViewer] Requesting display layout: ${this.desiredWidth}x${this.desiredHeight}`);
+            console.log(`[BedrockAgentcoreLiveViewer] Requesting display layout: ${this.desiredWidth}x${this.desiredHeight}`);
             // Only request display layout once
             if (!this.displayLayoutRequested) {
                 console.log('inside this method');
@@ -115,25 +115,25 @@ export class Bedrock-agentcoreLiveViewer {
                 return;
             }
 
-            console.log('[Bedrock-agentcoreLiveViewer] DCV SDK loaded, version:', dcv.version || 'Unknown');
-            console.log('[Bedrock-agentcoreLiveViewer] Available DCV methods:', Object.keys(dcv));
-            console.log('[Bedrock-agentcoreLiveViewer] Presigned URL:', this.presignedUrl);
+            console.log('[BedrockAgentcoreLiveViewer] DCV SDK loaded, version:', dcv.version || 'Unknown');
+            console.log('[BedrockAgentcoreLiveViewer] Available DCV methods:', Object.keys(dcv));
+            console.log('[BedrockAgentcoreLiveViewer] Presigned URL:', this.presignedUrl);
             
             // Set debug logging
             if (dcv.setLogLevel) {
                 dcv.setLogLevel(dcv.LogLevel.DEBUG);
-                console.log('[Bedrock-agentcoreLiveViewer] DCV log level set to DEBUG');
+                console.log('[BedrockAgentcoreLiveViewer] DCV log level set to DEBUG');
             }
 
-            console.log('[Bedrock-agentcoreLiveViewer] Starting authentication...');
+            console.log('[BedrockAgentcoreLiveViewer] Starting authentication...');
             
             dcv.authenticate(this.presignedUrl, {
                 promptCredentials: () => {
-                    console.warn('[Bedrock-agentcoreLiveViewer] DCV requested credentials - should not happen with presigned URL');
+                    console.warn('[BedrockAgentcoreLiveViewer] DCV requested credentials - should not happen with presigned URL');
                 },
                 error: (auth, error) => {
-                    console.error('[Bedrock-agentcoreLiveViewer] DCV auth error:', error);
-                    console.error('[Bedrock-agentcoreLiveViewer] Error details:', {
+                    console.error('[BedrockAgentcoreLiveViewer] DCV auth error:', error);
+                    console.error('[BedrockAgentcoreLiveViewer] Error details:', {
                         message: error.message || error,
                         code: error.code,
                         statusCode: error.statusCode,
@@ -142,14 +142,14 @@ export class Bedrock-agentcoreLiveViewer {
                     reject(error);
                 },
                 success: (auth, result) => {
-                    console.log('[Bedrock-agentcoreLiveViewer] DCV auth success:', result);
+                    console.log('[BedrockAgentcoreLiveViewer] DCV auth success:', result);
                     if (result && result[0]) {
                         const { sessionId, authToken } = result[0];
-                        console.log('[Bedrock-agentcoreLiveViewer] Session ID:', sessionId);
-                        console.log('[Bedrock-agentcoreLiveViewer] Auth token received:', authToken ? 'Yes' : 'No');
+                        console.log('[BedrockAgentcoreLiveViewer] Session ID:', sessionId);
+                        console.log('[BedrockAgentcoreLiveViewer] Auth token received:', authToken ? 'Yes' : 'No');
                         this.connectToSession(sessionId, authToken, resolve, reject);
                     } else {
-                        console.error('[Bedrock-agentcoreLiveViewer] No session data in auth result');
+                        console.error('[BedrockAgentcoreLiveViewer] No session data in auth result');
                         reject(new Error('No session data in auth result'));
                     }
                 },
@@ -159,7 +159,7 @@ export class Bedrock-agentcoreLiveViewer {
     }
 
     connectToSession(sessionId, authToken, resolve, reject) {
-        console.log('[Bedrock-agentcoreLiveViewer] Connecting to session:', sessionId);
+        console.log('[BedrockAgentcoreLiveViewer] Connecting to session:', sessionId);
         
         const connectOptions = {
             url: this.presignedUrl,
@@ -169,11 +169,11 @@ export class Bedrock-agentcoreLiveViewer {
             baseUrl: "/static/dcvjs",
             callbacks: {
                 firstFrame: () => {
-                    console.log('[Bedrock-agentcoreLiveViewer] First frame received!');
+                    console.log('[BedrockAgentcoreLiveViewer] First frame received!');
                     resolve(this.connection);
                 },
                 error: (error) => {
-                    console.error('[Bedrock-agentcoreLiveViewer] Connection error:', error);
+                    console.error('[BedrockAgentcoreLiveViewer] Connection error:', error);
                     reject(error);
                 },
                 httpExtraSearchParams: this.httpExtraSearchParamsCallBack.bind(this),
@@ -181,15 +181,15 @@ export class Bedrock-agentcoreLiveViewer {
             }
         };
         
-        console.log('[Bedrock-agentcoreLiveViewer] Connect options:', connectOptions);
+        console.log('[BedrockAgentcoreLiveViewer] Connect options:', connectOptions);
         
         dcv.connect(connectOptions)
         .then(connection => {
-            console.log('[Bedrock-agentcoreLiveViewer] Connection established:', connection);
+            console.log('[BedrockAgentcoreLiveViewer] Connection established:', connection);
             this.connection = connection;
         })
         .catch(error => {
-            console.error('[Bedrock-agentcoreLiveViewer] Connect failed:', error);
+            console.error('[BedrockAgentcoreLiveViewer] Connect failed:', error);
             reject(error);
         });
     }
@@ -604,8 +604,8 @@ button.active {
         html_script_part1 = '''
     <!-- Main viewer logic -->
     <script>
-        // Bedrock-agentcoreLiveViewer class
-        class Bedrock-agentcoreLiveViewer {
+        // BedrockAgentcoreLiveViewer class
+        class BedrockAgentcoreLiveViewer {
             constructor(presignedUrl, containerId = 'dcv-display') {
                 this.displayLayoutRequested = false;
                 this.presignedUrl = presignedUrl;
@@ -613,26 +613,26 @@ button.active {
                 this.connection = null;
                 this.desiredWidth = 1600;
                 this.desiredHeight = 900;
-                console.log('[Bedrock-agentcoreLiveViewer] Initialized with URL:', presignedUrl);
+                console.log('[BedrockAgentcoreLiveViewer] Initialized with URL:', presignedUrl);
             }
 
             httpExtraSearchParamsCallBack(method, url, body, returnType) {
-                console.log('[Bedrock-agentcoreLiveViewer] httpExtraSearchParamsCallBack called:', { method, url, returnType });
+                console.log('[BedrockAgentcoreLiveViewer] httpExtraSearchParamsCallBack called:', { method, url, returnType });
                 const parsedUrl = new URL(this.presignedUrl);
                 const params = parsedUrl.searchParams;
-                console.log('[Bedrock-agentcoreLiveViewer] Returning auth params:', params.toString());
+                console.log('[BedrockAgentcoreLiveViewer] Returning auth params:', params.toString());
                 return params;
             }
             
             displayLayoutCallback(serverWidth, serverHeight, heads) {
-                console.log(`[Bedrock-agentcoreLiveViewer] Display layout callback: ${serverWidth}x${serverHeight}`);
+                console.log(`[BedrockAgentcoreLiveViewer] Display layout callback: ${serverWidth}x${serverHeight}`);
                 
                 const display = document.getElementById(this.containerId);
                 display.style.width = `${this.desiredWidth}px`;
                 display.style.height = `${this.desiredHeight}px`;
 
                 if (this.connection) {
-                    console.log(`[Bedrock-agentcoreLiveViewer] Requesting display layout: ${this.desiredWidth}x${this.desiredHeight}`);
+                    console.log(`[BedrockAgentcoreLiveViewer] Requesting display layout: ${this.desiredWidth}x${this.desiredHeight}`);
                     // Only request display layout once
                     if (!this.displayLayoutRequested) {
                         console.log('inside this method');
@@ -661,25 +661,25 @@ button.active {
                         return;
                     }
 
-                    console.log('[Bedrock-agentcoreLiveViewer] DCV SDK loaded, version:', dcv.version || 'Unknown');
-                    console.log('[Bedrock-agentcoreLiveViewer] Available DCV methods:', Object.keys(dcv));
-                    console.log('[Bedrock-agentcoreLiveViewer] Presigned URL:', this.presignedUrl);
+                    console.log('[BedrockAgentcoreLiveViewer] DCV SDK loaded, version:', dcv.version || 'Unknown');
+                    console.log('[BedrockAgentcoreLiveViewer] Available DCV methods:', Object.keys(dcv));
+                    console.log('[BedrockAgentcoreLiveViewer] Presigned URL:', this.presignedUrl);
                     
                     // Set debug logging
                     if (dcv.setLogLevel) {
                         dcv.setLogLevel(dcv.LogLevel.DEBUG);
-                        console.log('[Bedrock-agentcoreLiveViewer] DCV log level set to DEBUG');
+                        console.log('[BedrockAgentcoreLiveViewer] DCV log level set to DEBUG');
                     }
 
-                    console.log('[Bedrock-agentcoreLiveViewer] Starting authentication...');
+                    console.log('[BedrockAgentcoreLiveViewer] Starting authentication...');
                     
                     dcv.authenticate(this.presignedUrl, {
                         promptCredentials: () => {
-                            console.warn('[Bedrock-agentcoreLiveViewer] DCV requested credentials - should not happen with presigned URL');
+                            console.warn('[BedrockAgentcoreLiveViewer] DCV requested credentials - should not happen with presigned URL');
                         },
                         error: (auth, error) => {
-                            console.error('[Bedrock-agentcoreLiveViewer] DCV auth error:', error);
-                            console.error('[Bedrock-agentcoreLiveViewer] Error details:', {
+                            console.error('[BedrockAgentcoreLiveViewer] DCV auth error:', error);
+                            console.error('[BedrockAgentcoreLiveViewer] Error details:', {
                                 message: error.message || error,
                                 code: error.code,
                                 statusCode: error.statusCode,
@@ -688,14 +688,14 @@ button.active {
                             reject(error);
                         },
                         success: (auth, result) => {
-                            console.log('[Bedrock-agentcoreLiveViewer] DCV auth success:', result);
+                            console.log('[BedrockAgentcoreLiveViewer] DCV auth success:', result);
                             if (result && result[0]) {
                                 const { sessionId, authToken } = result[0];
-                                console.log('[Bedrock-agentcoreLiveViewer] Session ID:', sessionId);
-                                console.log('[Bedrock-agentcoreLiveViewer] Auth token received:', authToken ? 'Yes' : 'No');
+                                console.log('[BedrockAgentcoreLiveViewer] Session ID:', sessionId);
+                                console.log('[BedrockAgentcoreLiveViewer] Auth token received:', authToken ? 'Yes' : 'No');
                                 this.connectToSession(sessionId, authToken, resolve, reject);
                             } else {
-                                console.error('[Bedrock-agentcoreLiveViewer] No session data in auth result');
+                                console.error('[BedrockAgentcoreLiveViewer] No session data in auth result');
                                 reject(new Error('No session data in auth result'));
                             }
                         },
@@ -707,7 +707,7 @@ button.active {
     # Main viewer script - Part 3: Session connect methods
         html_script_part3 = '''
             connectToSession(sessionId, authToken, resolve, reject) {
-                console.log('[Bedrock-agentcoreLiveViewer] Connecting to session:', sessionId);
+                console.log('[BedrockAgentcoreLiveViewer] Connecting to session:', sessionId);
                 
                 const connectOptions = {
                     url: this.presignedUrl,
@@ -717,11 +717,11 @@ button.active {
                     baseUrl: "/static/dcvjs",
                     callbacks: {
                         firstFrame: () => {
-                            console.log('[Bedrock-agentcoreLiveViewer] First frame received!');
+                            console.log('[BedrockAgentcoreLiveViewer] First frame received!');
                             resolve(this.connection);
                         },
                         error: (error) => {
-                            console.error('[Bedrock-agentcoreLiveViewer] Connection error:', error);
+                            console.error('[BedrockAgentcoreLiveViewer] Connection error:', error);
                             reject(error);
                         },
                         httpExtraSearchParams: this.httpExtraSearchParamsCallBack.bind(this),
@@ -729,15 +729,15 @@ button.active {
                     }
                 };
                 
-                console.log('[Bedrock-agentcoreLiveViewer] Connect options:', connectOptions);
+                console.log('[BedrockAgentcoreLiveViewer] Connect options:', connectOptions);
                 
                 dcv.connect(connectOptions)
                 .then(connection => {
-                    console.log('[Bedrock-agentcoreLiveViewer] Connection established:', connection);
+                    console.log('[BedrockAgentcoreLiveViewer] Connection established:', connection);
                     this.connection = connection;
                 })
                 .catch(error => {
-                    console.error('[Bedrock-agentcoreLiveViewer] Connect failed:', error);
+                    console.error('[BedrockAgentcoreLiveViewer] Connect failed:', error);
                     reject(error);
                 });
             }
