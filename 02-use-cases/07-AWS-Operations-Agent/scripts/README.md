@@ -163,19 +163,19 @@ python get-target.py --gateway-id ABC123XYZ --target-id DEF456UVW --update-local
 ### **Create Gateway Response**
 ```json
 {
-  "gatewayId": "prod-aws-operations-agent-gateway-v2-thlplud3ak",
-  "gatewayArn": "arn:aws:bedrock-agentcore:us-east-1:165938467517:gateway/prod-aws-operations-agent-gateway-v2-thlplud3ak",
-  "gatewayUrl": "https://prod-aws-operations-agent-gateway-v2-thlplud3ak.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp",
-  "name": "prod-aws-operations-agent-gateway-v2",
+  "gatewayId": "example-gateway-abc123def456",
+  "gatewayArn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/example-gateway-abc123def456",
+  "gatewayUrl": "https://example-gateway-abc123def456.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp",
+  "name": "example-operations-gateway",
   "description": "AWS Operations Agent Gateway for AWS operations",
   "status": "CREATING",
   "protocolType": "MCP",
   "authorizerType": "CUSTOM_JWT",
   "customJWTAuthorizer": {
     "allowedAudience": ["api://default"],
-    "discoveryUrl": "https://dev-09210948.okta.com/oauth2/default/.well-known/openid-configuration"
+    "discoveryUrl": "https://dev-12345678.okta.com/oauth2/default/.well-known/openid-configuration"
   },
-  "roleArn": "arn:aws:iam::165938467517:role/dev-bedrock-agentcore-gateway-role",
+  "roleArn": "arn:aws:iam::123456789012:role/example-bedrock-agentcore-gateway-role",
   "createdAt": "2025-07-01T17:00:00.000Z",
   "updatedAt": "2025-07-01T17:00:00.000Z"
 }
@@ -184,14 +184,14 @@ python get-target.py --gateway-id ABC123XYZ --target-id DEF456UVW --update-local
 ### **Create Target Response**
 ```json
 {
-  "gatewayArn": "arn:aws:bedrock-agentcore:us-east-1:165938467517:gateway/prod-aws-operations-agent-gateway-v2-thlplud3ak",
-  "targetId": "RGSDFAQXMX",
-  "name": "docker-strands-target",
-  "description": "Docker-based MCP tools target with Strands dependencies properly installed",
+  "gatewayArn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/example-gateway-abc123def456",
+  "targetId": "EXAMPLE123",
+  "name": "example-mcp-target",
+  "description": "Example MCP tools target with sample configuration",
   "status": "CREATING",
   "protocolType": "MCP",
   "authorizerType": "CUSTOM_JWT",
-  "roleArn": "arn:aws:iam::165938467517:role/dev-bedrock-agentcore-gateway-role",
+  "roleArn": "arn:aws:iam::123456789012:role/example-bedrock-agentcore-gateway-role",
   "createdAt": "2025-07-01T17:00:00.000Z",
   "updatedAt": "2025-07-01T17:00:00.000Z"
 }
@@ -201,13 +201,13 @@ python get-target.py --gateway-id ABC123XYZ --target-id DEF456UVW --update-local
 ```
 Live Gateways:
 ============================================================
-Gateway ID: prod-aws-operations-agent-gateway-v2-thlplud3ak
-Gateway Name: prod-aws-operations-agent-gateway-v2
+Gateway ID: example-gateway-abc123def456
+Gateway Name: example-operations-gateway
 Status: READY
 Description: AWS Operations Agent Gateway for AWS operations
 Created: 2025-07-01 17:00:00.000000+00:00
 Updated: 2025-07-01 17:00:00.000000+00:00
-MCP Endpoint: https://prod-aws-operations-agent-gateway-v2-thlplud3ak.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp
+MCP Endpoint: https://example-gateway-abc123def456.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp
 ```
 
 ## 🧰 **Script Design**
