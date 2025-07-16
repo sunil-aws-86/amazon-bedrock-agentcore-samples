@@ -1,10 +1,10 @@
-# Bedrock Agentcore SDK Tools Examples
+# Amazon Bedrock Agentcore SDK Tools Examples
 
 This folder contains examples demonstrating the use of Genesis SDK tools:
 
 ## Browser Tools
 
-* `browser_viewer.py` - Bedrock Agentcore Browser Live Viewer with proper display sizing support.
+* `browser_viewer.py` - Amazon Bedrock Agentcore Browser Live Viewer with proper display sizing support.
 * `run_live_viewer.py` - Standalone script to run the Bedrock Agentcore Browser Live Viewer.
 
 ## Code Interpreter Tools
