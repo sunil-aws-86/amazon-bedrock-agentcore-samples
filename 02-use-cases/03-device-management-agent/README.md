@@ -169,7 +169,7 @@ To generate the Bearer token required for authentication, use the following curl
 ```bash
 curl --http1.1 -X POST https://vgs-genesis.auth.us-west-2.amazoncognito.com/oauth2/token \
 -H "Content-Type: application/x-www-form-urlencoded" \
--d "grant_type=client_credentials&client_id=6ch0qssmtal17j06lh9o2a4k6p&client_secret=1q8q6kptmnr9ldslcjdhqbabo7fr2e6brg4l60lmjv9bvhahaoqg"
+-d "grant_type=client_credentials&client_id=<client id>&client_secret=<client_secret>"
 ```
 
 This command will return a JSON response containing the access token that should be used as the Bearer token in the MCP configuration.
