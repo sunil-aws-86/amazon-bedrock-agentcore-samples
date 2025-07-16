@@ -871,7 +871,7 @@ button.active {
                     log('[Main] Could not fetch debug info: ' + e.message);
                 }}
                 
-                viewer = new Bedrock-agentcoreLiveViewer('{presigned_url}', 'dcv-display');
+                viewer = new BedrockAgentcoreLiveViewer('{presigned_url}', 'dcv-display');
                 viewer.setDisplaySize(1600, 900);
                 
                 updateStatus('Connecting to browser session...');
