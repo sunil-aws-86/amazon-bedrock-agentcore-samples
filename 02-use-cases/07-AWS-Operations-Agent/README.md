@@ -100,7 +100,7 @@ This project implements a **serverless AI-powered AWS operations platform** usin
 
 ### AWS Operations Agent in Action
 
-![AWS Operations Conversational Agent Demo](demo/demo.gif)
+![AWS Operations Conversational Agent Demo](images/demo.gif)
 
 The interactive client provides a natural language interface for AWS operations:
 - **Real-time streaming responses** from Claude 3.7 Sonnet

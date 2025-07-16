@@ -23,6 +23,20 @@ Parameters:
     Default: aws-operations-agent-conversations
     Description: Name of the DynamoDB table for conversation storage
 
+  ConversationTTLMinutes:
+    Type: Number
+    Default: 15
+    MinValue: 1
+    MaxValue: 1440
+    Description: TTL in minutes for conversation expiration (1-1440 minutes, default 15)
+
+  ConversationTTLMinutes:
+    Type: Number
+    Default: 15
+    MinValue: 1
+    MaxValue: 1440
+    Description: TTL in minutes for conversation expiration (1-1440 minutes, default 15)
+
 Globals:
   Function:
     Timeout: 300
@@ -195,6 +209,8 @@ Resources:
           DYNAMODB_TABLE_NAME: !Ref ConversationTable
           PROJECT_NAME: lambda-adaptor-bedrock-agentcore
           ENVIRONMENT: !Ref Environment
+          CONVERSATION_TTL_MINUTES: !Ref ConversationTTLMinutes
+          CONVERSATION_TTL_MINUTES: 15
 
       # Function URL Configuration for direct HTTP access
       FunctionUrlConfig:
@@ -303,3 +319,9 @@ Outputs:
   BedrockRegion:
     Description: Bedrock Region
     Value: !Ref BedrockRegion
+
+  ConversationTTLMinutes:
+    Description: Conversation TTL in minutes
+    Value: !Ref ConversationTTLMinutes
+    Export:
+      Name: !Sub ${AWS::StackName}-ConversationTTLMinutes

@@ -7,23 +7,7 @@
 
 ## System Architecture
 
-```
-┌───────────────┐     ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-│               │     │               │     │               │     │               │
-│    Client     │────▶│  Function URL │────▶│AWS Operations │────▶│   DynamoDB    │
-│               │     │               │     │Agent Lambda   │     │               │
-│               │     │               │     │               │     │               │
-└───────────────┘     └───────────────┘     └───────┬───────┘     └───────────────┘
-                                                    │
-                                                    │
-                                                    ▼
-┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-│               │     │               │     │               │
-│   AWS Tools   │◀────│   MCP Tool    │◀────│    Bedrock    │
-│   (20 APIs)   │     │    Lambda     │     │  AgentCore    │
-│               │     │               │     │   Gateway     │
-└───────────────┘     └───────────────┘     └───────────────┘
-```
+![Architecture Diagram](../images/architecture.png)
 
 ## Component Overview
 
@@ -72,34 +56,34 @@
 │                                                                 │
 │                      Client Application                         │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Command Line Interface                     │   │
-│  │  • Interactive prompt with command history              │   │
-│  │  • Streaming response display                           │   │
-│  │  • Tool invocation visualization                        │   │
-│  │  • Conversation management commands                     │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Command Line Interface                     │    │
+│  │  • Interactive prompt with command history              │    │
+│  │  • Streaming response display                           │    │
+│  │  • Tool invocation visualization                        │    │
+│  │  • Conversation management commands                     │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Authentication Manager                     │   │
-│  │  • AWS SigV4 signing for Lambda Function URL            │   │
-│  │  • Okta token management for MCP authentication         │   │
-│  │  • Token refresh and validation                         │   │
-│  │  • Profile selection (demo1, etc.)                      │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Authentication Manager                     │    │
+│  │  • AWS SigV4 signing for Lambda Function URL            │    │
+│  │  • Okta token management for MCP authentication         │    │
+│  │  • Token refresh and validation                         │    │
+│  │  • Profile selection (demo1, etc.)                      │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              HTTP Client                                │   │
-│  │  • Streaming response handling                          │   │
-│  │  • Request retry with exponential backoff               │   │
-│  │  • Timeout management                                   │   │
-│  │  • Error handling and reporting                         │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              HTTP Client                                │    │
+│  │  • Streaming response handling                          │    │
+│  │  • Request retry with exponential backoff               │    │
+│  │  • Timeout management                                   │    │
+│  │  • Error handling and reporting                         │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  Client ID: cli-client-<random-id>                             │
-│  AWS Profile: demo1                                            │
-│  AWS Region: us-east-1                                         │
-│  Okta Token: eyJraWQiOiJxczFVSzFqWnN0NmZyZU...                │
+│  Client ID: cli-client-<random-id>                              │
+│  AWS Profile: demo1                                             │
+│  AWS Region: us-east-1                                          │
+│  Okta Token: eyJraWQiOiJxczFVSzFqWnN0NmZyZU...                  │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -111,33 +95,33 @@
 │                                                                 │
 │                      Lambda Function URL                        │
 │                                                                 │
-│  URL: https://<unique-id>.lambda-url.us-east-1.on.aws/         │
-│  Auth Type: AWS_IAM                                            │
-│  Invoke Mode: RESPONSE_STREAM                                  │
+│  URL: https://<unique-id>.lambda-url.us-east-1.on.aws/          │
+│  Auth Type: AWS_IAM                                             │
+│  Invoke Mode: RESPONSE_STREAM                                   │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Authentication                             │   │
-│  │  • AWS SigV4 validation                                 │   │
-│  │  • IAM policy enforcement                               │   │
-│  │  • No additional authorization layer needed             │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Authentication                             │    │
+│  │  • AWS SigV4 validation                                 │    │
+│  │  • IAM policy enforcement                               │    │
+│  │  • No additional authorization layer needed             │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              CORS Configuration                         │   │
-│  │  • AllowOrigins: *                                      │   │
-│  │  • AllowMethods: *                                      │   │
-│  │  • AllowHeaders: *                                      │   │
-│  │  • AllowCredentials: true                               │   │
-│  │  • MaxAge: 86400                                        │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              CORS Configuration                         │    │
+│  │  • AllowOrigins: *                                      │    │
+│  │  • AllowMethods: *                                      │    │
+│  │  • AllowHeaders: *                                      │    │
+│  │  • AllowCredentials: true                               │    │
+│  │  • MaxAge: 86400                                        │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Endpoints                                  │   │
-│  │  • /stream - Streaming chat responses                   │   │
-│  │  • /chat - Non-streaming chat                           │   │
-│  │  • /api/conversations - Conversation management         │   │
-│  │  • /api/tools/fetch - Available MCP tools               │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Endpoints                                  │    │
+│  │  • /stream - Streaming chat responses                   │    │
+│  │  • /chat - Non-streaming chat                           │    │
+│  │  • /api/conversations - Conversation management         │    │
+│  │  • /api/tools/fetch - Available MCP tools               │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -154,37 +138,37 @@
 │  Memory: 1536 MB                                                │
 │  Timeout: 300 seconds                                           │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              FastAPI Application                        │   │
-│  │  • AWS Lambda Web Adapter integration                   │   │
-│  │  • Streaming response support                           │   │
-│  │  • API endpoints for conversation management            │   │
-│  │  • Error handling and validation                        │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              FastAPI Application                        │    │
+│  │  • AWS Lambda Web Adapter integration                   │    │
+│  │  • Streaming response support                           │    │
+│  │  • API endpoints for conversation management            │    │
+│  │  • Error handling and validation                        │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Strands Agent                              │   │
-│  │  • Claude 3.7 Sonnet integration                        │   │
-│  │  • Tool selection and execution                         │   │
-│  │  • Conversation context management                      │   │
-│  │  • Natural language understanding                       │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Strands Agent                              │    │
+│  │  • Claude 3.7 Sonnet integration                        │    │
+│  │  • Tool selection and execution                         │    │
+│  │  • Conversation context management                      │    │
+│  │  • Natural language understanding                       │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              MCP Client                                 │   │
-│  │  • Bedrock AgentCore Gateway integration                │   │
-│  │  • Tool discovery and invocation                        │   │
-│  │  • Authentication with Okta token                       │   │
-│  │  • Error handling and retries                           │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              MCP Client                                 │    │
+│  │  • Bedrock AgentCore Gateway integration                │    │
+│  │  • Tool discovery and invocation                        │    │
+│  │  • Authentication with Okta token                       │    │
+│  │  • Error handling and retries                           │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              DynamoDB Integration                       │   │
-│  │  • Conversation persistence                             │   │
-│  │  • Message history management                           │   │
-│  │  • TTL for automatic cleanup                            │   │
-│  │  • Optimistic locking for concurrent access             │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              DynamoDB Integration                       │    │
+│  │  • Conversation persistence                             │    │
+│  │  • Message history management                           │    │
+│  │  • TTL for automatic cleanup                            │    │
+│  │  • Optimistic locking for concurrent access             │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -196,11 +180,11 @@
 │                                                                 │
 │                    Bedrock AgentCore Gateway                    │
 │                                                                 │
-│  Gateway ID: example-gateway-<random-id>   │
+│  Gateway ID: example-gateway-<random-id>                        │
 │  Data Plane URL: https://<gateway-id>.gateway.bedrock-agentcore.│
 │                  <region>.amazonaws.com/mcp                     │
-│  Execution Role: BedrockAgentCoreGatewayExecutionRole-<environment>      │
-│  Service Account: (bedrock-agentcore-control)      │
+│  Execution Role: BedrockAgentCoreGatewayExecutionRole-<env      │
+│  Service Account: (bedrock-agentcore-control)                   │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
@@ -208,29 +192,29 @@
 │                                                                 │
 │                    Bedrock AgentCore Target                     │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Target Configuration                       │   │
-│  │  • Name: example-mcp-target                          │   │
-│  │  • Type: Lambda                                         │   │
-│  │  • Status: READY                                        │   │
-│  │  • Tool Count: 20                                       │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Target Configuration                       │    │
+│  │  • Name: example-mcp-target                             │    │
+│  │  • Type: Lambda                                         │    │
+│  │  • Status: READY                                        │    │
+│  │  • Tool Count: 20                                       │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Authentication                             │   │
-│  │  • JWT Validation (Okta)                                │   │
-│  │  • Audience: api://default                              │   │
-│  │  • Discovery URL: https://dev-12345678.okta.com/oauth2/ │   │
-│  │                   default/.well-known/openid-configuration │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Authentication                             │    │
+│  │  • JWT Validation (Okta)                                │    │
+│  │  • Audience: api://default                              │    │
+│  │  • Discovery URL: https://dev-12345678.okta.com/oauth2/ │    │
+│  │                default/.well-known/openid-configuration │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              MCP Protocol                               │   │
-│  │  • JSON-RPC 2.0 over HTTPS                              │   │
-│  │  • Tool discovery via list_tools                        │   │
-│  │  • Tool invocation via execute_tool                     │   │
-│  │  • Streaming response support                           │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              MCP Protocol                               │    │
+│  │  • JSON-RPC 2.0 over HTTPS                              │    │
+│  │  • Tool discovery via list_tools                        │    │
+│  │  • Tool invocation via execute_tool                     │    │
+│  │  • Streaming response support                           │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -242,20 +226,20 @@
 │                                                                 │
 │                      MCP Tool Lambda                            │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Lambda Function Handler                        ││
-│  │  • Function: <environment>-bedrock-agentcore-mcp-tool                ││
-│  │  • Runtime: Container (Docker)                              ││
-│  │  • Handler: mcp-tool-handler.lambda_handler                 ││
-│  │  • Architecture: x86_64                                     ││
-│  │  • Memory: 3008 MB (maximum for performance)                ││
-│  │  • Timeout: 15 minutes (for complex operations)             ││
-│  │  • Bedrock AgentCore Context Processing                               ││
-│  └─────────────────────────────────────────────────────────┘│
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Lambda Function Handler                    │    │
+│  │  • Function: <environment>-bedrock-agentcore-mcp-tool   │    │
+│  │  • Runtime: Container (Docker)                          │    │
+│  │  • Handler: mcp-tool-handler.lambda_handler             │    │
+│  │  • Architecture: x86_64                                 │    │
+│  │  • Memory: 3008 MB (maximum for performance)            │    │
+│  │  • Timeout: 15 minutes (for complex operations)         │    │
+│  │  • Bedrock AgentCore Context Processing                 │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
 │  Target ID: <target-id> (docker-strands-target)                 │
 │  ARN: arn:aws:lambda:<region>:<account-id>:function:            │
-│       <environment>-bedrock-agentcore-mcp-tool                           │
+│       <environment>-bedrock-agentcore-mcp-tool                  │
 │                                                                 │
 │  Credential Provider: GATEWAY_IAM_ROLE                          │
 └─────────────────────────────────────────────────────────────────┘
@@ -265,38 +249,38 @@
 │                                                                 │
 │                      Docker Container                           │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Tool Implementation                        │   │
-│  │  • hello_world: Basic greeting tool                     │   │
-│  │  • get_time: Server time tool                           │   │
-│  │  • ec2_read_operations: EC2 instance queries            │   │
-│  │  • s3_read_operations: S3 bucket operations             │   │
-│  │  • lambda_read_operations: Lambda function queries      │   │
-│  │  • cloudformation_read_operations: Stack queries        │   │
-│  │  • iam_read_operations: IAM role/policy queries         │   │
-│  │  • rds_read_operations: Database queries                │   │
-│  │  • cloudwatch_read_operations: Metrics and logs         │   │
-│  │  • cost_explorer_read_operations: Cost analysis         │   │
-│  │  • ecs_read_operations: Container queries               │   │
-│  │  • eks_read_operations: Kubernetes queries              │   │
-│  │  • sns_read_operations: Topic queries                   │   │
-│  │  • sqs_read_operations: Queue queries                   │   │
-│  │  • dynamodb_read_operations: Table queries              │   │
-│  │  • route53_read_operations: DNS queries                 │   │
-│  │  • apigateway_read_operations: API queries              │   │
-│  │  • ses_read_operations: Email queries                   │   │
-│  │  • bedrock_read_operations: Model queries               │   │
-│  │  • sagemaker_read_operations: ML queries                │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Tool Implementation                        │    │
+│  │  • hello_world: Basic greeting tool                     │    │
+│  │  • get_time: Server time tool                           │    │
+│  │  • ec2_read_operations: EC2 instance queries            │    │
+│  │  • s3_read_operations: S3 bucket operations             │    │
+│  │  • lambda_read_operations: Lambda function queries      │    │
+│  │  • cloudformation_read_operations: Stack queries        │    │
+│  │  • iam_read_operations: IAM role/policy queries         │    │
+│  │  • rds_read_operations: Database queries                │    │
+│  │  • cloudwatch_read_operations: Metrics and logs         │    │
+│  │  • cost_explorer_read_operations: Cost analysis         │    │
+│  │  • ecs_read_operations: Container queries               │    │
+│  │  • eks_read_operations: Kubernetes queries              │    │
+│  │  • sns_read_operations: Topic queries                   │    │
+│  │  • sqs_read_operations: Queue queries                   │    │
+│  │  • dynamodb_read_operations: Table queries              │    │
+│  │  • route53_read_operations: DNS queries                 │    │
+│  │  • apigateway_read_operations: API queries              │    │
+│  │  • ses_read_operations: Email queries                   │    │
+│  │  • bedrock_read_operations: Model queries               │    │
+│  │  • sagemaker_read_operations: ML queries                │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Configuration Management                       ││
-│  │  • Config Source: configs/bedrock-agentcore-config.json               ││
-│  │  • Environment Support: dev, gamma, prod                    ││
-│  │  • Endpoint Selection: production_endpoints (active)        ││
-│  │  • Tool Schema: 20 AWS service tools defined                ││
-│  │  • IAM Role Management: BedrockAgentCoreGatewayExecutionRole-dev     ││
-│  └─────────────────────────────────────────────────────────┘│
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Configuration Management                   │    │
+│  │  • Config Source: configs/bedrock-agentcore-config.json │    │
+│  │  • Environment Support: dev, gamma, prod                │    │
+│  │  • Endpoint Selection: production_endpoints (active)    │    │
+│  │  • Tool Schema: 20 AWS service tools defined            │    │
+│  │                                                         │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -312,21 +296,21 @@
 │  Billing Mode: PAY_PER_REQUEST                                  │
 │  Capacity Mode: On-Demand                                       │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Schema                                     │   │
-│  │  • conversation_id: String (Partition Key)              │   │
-│  │  • messages: List (Conversation history)                │   │
-│  │  • metadata: Map (Client info, timestamps)              │   │
-│  │  • ttl: Number (Auto-expiration)                        │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Schema                                     │    │
+│  │  • conversation_id: String (Partition Key)              │    │
+│  │  • messages: List (Conversation history)                │    │
+│  │  • metadata: Map (Client info, timestamps)              │    │
+│  │  • ttl: Number (Auto-expiration)                        │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Features                                   │   │
-│  │  • Point-in-Time Recovery: Enabled                      │   │
-│  │  • TTL: Enabled (30 days default)                       │   │
-│  │  • Stream: NEW_AND_OLD_IMAGES                           │   │
-│  │  • Encryption: AWS Owned CMK                            │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Features                                   │    │
+│  │  • Point-in-Time Recovery: Enabled                      │    │
+│  │  • TTL: Enabled (30 days default)                       │    │
+│  │  • Stream: NEW_AND_OLD_IMAGES                           │    │
+│  │  • Encryption: AWS Owned CMK                            │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -338,61 +322,61 @@
 │                                                                 │
 │                      Conversation Flow                          │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              User Request                               │   │
-│  │  • "List my EC2 instances in us-east-1"                 │   │
-│  │  • conversation_id: "abc123"                            │   │
-│  │  • okta_token: "eyJhbGciOiJSUzI1..."                    │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              User Request                               │    │
+│  │  • "List my EC2 instances in us-east-1"                 │    │
+│  │  • conversation_id: "abc123"                            │    │
+│  │  • okta_token: "eyJhbGciOiJSUzI1..."                    │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                              │                                  │
 │                              ▼                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              AWS Operations Agent Lambda                │   │
-│  │  • Load conversation history from DynamoDB              │   │
-│  │  • Process user message with Claude + Bedrock AgentCore tools          │
-│  │  • Store updated conversation back to DynamoDB          │   │
-│  │                                                         │   │
-│  │  Conversation Object:                                   │   │
-│  │  {                                                      │   │
-│  │    "conversation_id": "abc123",                         │   │
-│  │    "messages": [                                        │   │
-│  │      {"role": "user", "content": "List my EC2..."},     │   │
-│  │      {"role": "assistant", "content": "I'll help..."}   │   │
-│  │    ],                                                   │   │
-│  │    "session_metadata": {                                        │
-│  │      "client_type": "cli",                                      │
-│  │      "bedrock_agentcore_gateway_url": "https://prod-aws-operations-agent-gateway...",│
-│  │      "tools_available": 20                                      │
-│  │    }                                                            │
-│  │  }                                                      │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              AWS Operations Agent Lambda                │    │
+│  │  • Load conversation history from DynamoDB              │    │
+│  │  • Process user message with Claude + Bedrock AgentCore tools│
+│  │  • Store updated conversation back to DynamoDB          │    │
+│  │                                                         │    │
+│  │  Conversation Object:                                   │    │
+│  │  {                                                      │    │
+│  │    "conversation_id": "abc123",                         │    │
+│  │    "messages": [                                        │    │
+│  │      {"role": "user", "content": "List my EC2..."},     │    │
+│  │      {"role": "assistant", "content": "I'll help..."}   │    │
+│  │    ],                                                   │    │
+│  │    "session_metadata": {                                │    │
+│  │      "client_type": "cli",                              │    │
+│  │      "bedrock_agentcore_gateway_url": "..",             │    │
+│  │      "tools_available": 20                              │    │
+│  │    }                                                    │    │
+│  │  }                                                      │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                              │                                  │
 │                              ▼                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Strands Agent                              │   │
-│  │  • Analyzes user intent                                 │   │
-│  │  • Determines need for ec2_read_operations tool         │   │
-│  │  • Formulates natural language query                    │   │
-│  │  • Prepares tool parameters                             │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Strands Agent                              │    │
+│  │  • Analyzes user intent                                 │    │
+│  │  • Determines need for ec2_read_operations tool         │    │
+│  │  • Formulates natural language query                    │    │
+│  │  • Prepares tool parameters                             │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                              │                                  │
 │                              ▼                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              MCP Client                                 │   │
-│  │  • Connects to Bedrock AgentCore Gateway                │   │
-│  │  • Sends tool execution request                         │   │
-│  │  • Includes Okta token for authentication               │   │
-│  │  • Receives tool execution results                      │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              MCP Client                                 │    │
+│  │  • Connects to Bedrock AgentCore Gateway                │    │
+│  │  • Sends tool execution request                         │    │
+│  │  • Includes Okta token for authentication               │    │
+│  │  • Receives tool execution results                      │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                              │                                  │
 │                              ▼                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Response Generation                        │   │
-│  │  • Combines tool results with AI reasoning              │   │
-│  │  • Formats response for human readability               │   │
-│  │  • Streams response back to client                      │   │
-│  │  • Updates conversation history                         │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Response Generation                        │    │
+│  │  • Combines tool results with AI reasoning              │    │
+│  │  • Formats response for human readability               │    │
+│  │  • Streams response back to client                      │    │
+│  │  • Updates conversation history                         │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -404,21 +388,21 @@
 │                                                                 │
 │                    IAM Trust Relationships                      │
 │                                                                 │
-│             Bedrock AgentCore Service Account                             │
+│             Bedrock AgentCore Service Account                   │
 │                    │                                            │
 │                    ▼ AssumeRole                                 │
 │  ┌─────────────────────────────────────────────────────────────┐│
-│  │         <your-name>-bedrock-agentcore-gateway-role                    ││
+│  │         <your-name>-bedrock-agentcore-gateway-role          ││
 │  │  • lambda:InvokeFunction                                    ││
-│  │  • bedrock-agentcore-test:*, bedrock-agentcore:*                                ││
+│  │  • bedrock-agentcore-test:*, bedrock-agentcore:*            ││
 │  │  • s3:*, logs:*, kms:*                                      ││
 │  └─────────────────────────────────────────────────────────────┘│
 │                    │                                            │
 │                    ▼ InvokeFunction                             │
 │  ┌─────────────────────────────────────────────────────────────┐│
-│  │         <environment>-bedrock-agentcore-mcp-tool Lambda              ││
+│  │         <environment>-bedrock-agentcore-mcp-tool Lambda     ││
 │  │  • Resource Policy allows Gateway role                      ││
-│  │  • Execution role trusts Lambda + Bedrock AgentCore services          ││
+│  │  • Execution role trusts Lambda + Bedrock AgentCore services││
 │  │  • ReadOnlyAccess policy for AWS service queries            ││
 │  │  • Bedrock model access for Strands Agent                   ││
 │  └─────────────────────────────────────────────────────────────┘│
