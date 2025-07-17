@@ -167,7 +167,7 @@ python test_lambda.py
 To generate the Bearer token required for authentication, use the following curl command to request an access token from the Cognito OAuth2 endpoint:
 
 ```bash
-curl --http1.1 -X POST https://vgs-genesis.auth.us-west-2.amazoncognito.com/oauth2/token \
+curl --http1.1 -X POST https://<cognito domain>.auth.us-west-2.amazoncognito.com/oauth2/token \
 -H "Content-Type: application/x-www-form-urlencoded" \
 -d "grant_type=client_credentials&client_id=<client id>&client_secret=<client_secret>"
 ```
