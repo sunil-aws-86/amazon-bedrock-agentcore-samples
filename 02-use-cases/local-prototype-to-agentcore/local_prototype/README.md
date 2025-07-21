@@ -254,11 +254,12 @@ local_prototype/
 
 ## Next Steps
 
-For production deployment, see the `production_using_agentcore` directory which demonstrates how to deploy this architecture to AWS using AgentCore.
+For production deployment, see the `agentcore_app` directory which demonstrates how to deploy this architecture to AWS using AgentCore.
 
-## License
+## 📝 License
 
-TBD
+This project is licensed under the Apache License 2.0 - see the [LICENSE](../../../LICENSE) file for details.
+
 
 ## Note
 

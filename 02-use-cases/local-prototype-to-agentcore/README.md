@@ -1,4 +1,16 @@
 # From Prototype to Production: Agentic Applications with AWS Bedrock AgentCore
+> [!CAUTION]
+> This sample is for experimental and educational purposes only. They demonstrate concepts and techniques but are not intended for direct use in production environments. Make sure to have Amazon Bedrock Guardrails in place to protect against [prompt injection](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-injection.html). 
+
+**Important:**
+- This application **is not intended** for direct use in production environments.
+- The code and architecture presented here are examples and may not meet all security, scalability, or compliance requirements for your specific use case.
+- Before deploying any similar system in a production environment, it is crucial to:
+  - Conduct thorough testing and security audits
+  - Ensure compliance with all relevant regulations and industry standards
+  - Optimize for your specific performance and scalability needs
+  - Implement proper error handling, logging, and monitoring
+  - Follow all AWS best practices for production deployments
 
 <div align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python 3.10+"/>
@@ -16,7 +28,7 @@ This repository demonstrates how to transform a local prototype of an agentic ap
 The repository contains two parallel implementations:
 
 - **`local_prototype/`** - A development-focused implementation using local servers and direct connections
-- **`production_using_agentcore/`** - A production-ready implementation leveraging AWS Bedrock AgentCore services
+- **`agentcore_app/`** - A production-ready implementation leveraging AWS Bedrock AgentCore services
 
 ## ✨ Key Benefits of Cloud Migration
 
@@ -63,7 +75,7 @@ insurance_final/
 │   ├── native_mcp_server/            # Local MCP server
 │   └── strands_insurance_agent/      # Local agent implementation
 │
-└── production_using_agentcore/       # Production implementation
+└── agentcore_app/       # Production implementation
     ├── cloud_insurance_api/          # Lambda-deployed FastAPI
     ├── cloud_mcp_server/             # AgentCore Gateway configuration
     └── cloud_strands_insurance_agent/  # Cloud agent implementation
@@ -258,7 +270,7 @@ Follow these steps to deploy the complete production solution:
 
 1. **Deploy the Insurance API**
    ```bash
-   cd production_using_agentcore/cloud_insurance_api/deployment
+   cd agentcore_app/cloud_insurance_api/deployment
    ./deploy.sh
    ```
    This deploys the FastAPI application to AWS Lambda and creates an API Gateway endpoint using AWS SAM.
@@ -304,7 +316,7 @@ Follow these steps to deploy the complete production solution:
      '{"user_input": "I need a quote for a 2023 Toyota Camry"}'
    ```
 
-   ![Bedrock AgentCore Insurance App Conversation](production_using_agentcore/cloud_strands_insurance_agent/agentcore_strands_conversation.gif)
+   ![Bedrock AgentCore Insurance App Conversation](agentcore_app/cloud_strands_insurance_agent/agentcore_strands_conversation.gif)
 
 ## 🔍 Component Details
 ![Bedrock AgentCore Insurance App Architecture](agentcore-insurance-app-architecture.png)
@@ -313,19 +325,19 @@ Follow these steps to deploy the complete production solution:
 
 The Insurance API is built with FastAPI and deployed as a serverless application using AWS Lambda and API Gateway. It provides endpoints for querying insurance-related information.
 
-[Learn more about the Cloud Insurance API](production_using_agentcore/cloud_insurance_api/README.md)
+[Learn more about the Cloud Insurance API](agentcore_app/cloud_insurance_api/README.md)
 
 ### Cloud MCP Server
 
 The MCP Server component configures AWS Bedrock AgentCore Gateway to expose insurance API operations as MCP tools that can be used by LLM-powered agents.
 
-[Learn more about the Cloud MCP Server](production_using_agentcore/cloud_mcp_server/README.md)
+[Learn more about the Cloud MCP Server](agentcore_app/cloud_mcp_server/README.md)
 
 ### Cloud Strands Insurance Agent
 
 The Insurance Agent is built using Strands Agents framework and connects to the AgentCore Gateway to provide insurance assistance through natural language interactions.
 
-[Learn more about the Cloud Strands Insurance Agent](production_using_agentcore/cloud_strands_insurance_agent/README.md)
+[Learn more about the Cloud Strands Insurance Agent](agentcore_app/cloud_strands_insurance_agent/README.md)
 
 ## 🛡️ Security Considerations
 
@@ -345,7 +357,7 @@ The production implementation includes:
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](../../LICENSE) file for details.
 
 ---
 
