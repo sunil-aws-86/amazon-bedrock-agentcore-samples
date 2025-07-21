@@ -212,9 +212,10 @@ Logs include:
    - Error: Agent displays raw JSON or list format instead of clean text
    - Solution: The response parser may need updates for new Strands versions
 
-## License
+## 📝 License
 
-TBD
+This project is licensed under the Apache License 2.0 - see the [LICENSE](../../../../LICENSE) file for details.
+
 
 ## Note
 
