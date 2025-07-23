@@ -35,7 +35,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 uv pip install -r requirements.txt
 ```
 
-### 3. Configure API Key Provider (for OpenAI models)
+### 3. Configure API Key Provider (for OpenAI + strands example)
 
 If you're using OpenAI models with your Strands agent, you'll need to set up an API key provider:
 
