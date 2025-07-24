@@ -88,8 +88,11 @@ cd "$SCRIPT_DIR"
 # Create a temporary file to capture output
 TEMP_OUTPUT=$(mktemp)
 
+# Change to parent directory to use uv
+cd "$PARENT_DIR"
+
 # Run the Python script and capture both return code and output
-if python deploy_agent_runtime.py \
+if uv run python deployment/deploy_agent_runtime.py \
     --container-uri "$ECR_REPO_URI:latest" \
     --role-arn "$ROLE_ARN" \
     --runtime-name "$RUNTIME_NAME" \
