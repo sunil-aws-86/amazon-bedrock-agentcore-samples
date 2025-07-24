@@ -90,3 +90,8 @@ config.yaml
 # Temporary files
 *.tmp
 *.temp
+
+# Deployment artifacts
+deployment/.sre_agent_uri
+deployment/.env
+deployment/.agent_arn
