@@ -5,6 +5,7 @@ import boto3
 import json
 import logging
 import os
+import time
 from pathlib import Path
 from dotenv import load_dotenv
 from botocore.exceptions import ClientError
@@ -131,43 +132,56 @@ def _create_agent_runtime(
         
     except ClientError as e:
         error_code = e.response.get('Error', {}).get('Code', '')
-        if error_code == 'ConflictException':
-            logging.error(f"Agent runtime '{runtime_name}' already exists.")
-            logging.info("Listing existing agent runtimes:")
-            _list_existing_agent_runtimes(client)
-            
-            if force_recreate:
-                # Get the runtime ID and attempt to delete
-                runtime_id = _get_agent_runtime_id_by_name(client, runtime_name)
-                if runtime_id:
-                    if _delete_agent_runtime(client, runtime_id):
-                        logging.info("Attempting to recreate agent runtime...")
-                        # Retry creation after deletion
-                        response = client.create_agent_runtime(
-                            agentRuntimeName=runtime_name,
-                            agentRuntimeArtifact={
-                                'containerConfiguration': {
-                                    'containerUri': container_uri
-                                }
-                            },
-                            networkConfiguration={"networkMode": "PUBLIC"},
-                            roleArn=role_arn,
-                            environmentVariables=env_vars
-                        )
-                        
-                        logging.info(f"Agent Runtime recreated successfully!")
-                        logging.info(f"Agent Runtime ARN: {response['agentRuntimeArn']}")
-                        logging.info(f"Status: {response['status']}")
-                        _write_agent_arn_to_file(response['agentRuntimeArn'])
-                    else:
-                        logging.error("Failed to delete existing runtime")
-                else:
-                    logging.error(f"Could not find runtime ID for '{runtime_name}'")
-            else:
-                logging.info("Please retry with a new agent name using the --runtime-name parameter, or use --force-recreate to delete and recreate.")
-        else:
+        
+        # Handle non-conflict errors immediately
+        if error_code != 'ConflictException':
             logging.error(f"Failed to create agent runtime: {e}")
             raise
+        
+        # Handle conflict - runtime already exists
+        logging.error(f"Agent runtime '{runtime_name}' already exists.")
+        logging.info("Listing existing agent runtimes:")
+        _list_existing_agent_runtimes(client)
+        
+        # If not forcing recreate, provide guidance and exit
+        if not force_recreate:
+            logging.info("Please retry with a new agent name using the --runtime-name parameter, or use --force-recreate to delete and recreate.")
+            return
+        
+        # Handle force recreate scenario
+        logging.info("Force recreate requested, attempting to delete existing runtime...")
+        runtime_id = _get_agent_runtime_id_by_name(client, runtime_name)
+        
+        if not runtime_id:
+            logging.error(f"Could not find runtime ID for '{runtime_name}'")
+            return
+        
+        if not _delete_agent_runtime(client, runtime_id):
+            logging.error("Failed to delete existing runtime")
+            return
+        
+        # Wait for deletion to complete
+        logging.info("Waiting 10 seconds for deletion to complete...")
+        time.sleep(10)
+        
+        # Recreate the runtime after successful deletion
+        logging.info("Attempting to recreate agent runtime...")
+        response = client.create_agent_runtime(
+            agentRuntimeName=runtime_name,
+            agentRuntimeArtifact={
+                'containerConfiguration': {
+                    'containerUri': container_uri
+                }
+            },
+            networkConfiguration={"networkMode": "PUBLIC"},
+            roleArn=role_arn,
+            environmentVariables=env_vars
+        )
+        
+        logging.info(f"Agent Runtime recreated successfully!")
+        logging.info(f"Agent Runtime ARN: {response['agentRuntimeArn']}")
+        logging.info(f"Status: {response['status']}")
+        _write_agent_arn_to_file(response['agentRuntimeArn'])
 
 
 def main():
