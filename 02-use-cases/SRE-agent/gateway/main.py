@@ -18,9 +18,6 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-from observability import enable_observability_for_resource
-
-
 # Configuration constants
 GATEWAY_DELETION_PROPAGATION_DELAY = 3
 
