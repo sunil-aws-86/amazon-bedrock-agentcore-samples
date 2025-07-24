@@ -51,7 +51,7 @@ async def initialize_agent():
         provider = "anthropic"  # Default provider
         
         # Check if we should use bedrock instead
-        if not os.getenv("ANTHROPIC_API_KEY") and (os.getenv("AWS_ACCESS_KEY_ID") or os.getenv("AWS_PROFILE")):
+        if not os.getenv("ANTHROPIC_API_KEY") and os.getenv("AWS_PROFILE"):
             provider = "bedrock"
         
         # Create multi-agent system using the same function as CLI

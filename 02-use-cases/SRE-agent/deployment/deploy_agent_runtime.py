@@ -103,6 +103,14 @@ def _create_agent_runtime(
     force_recreate: bool = False
 ) -> None:
     """Create an agent runtime with error handling for conflicts."""
+    # Build environment variables
+    env_vars = {
+        'GATEWAY_ACCESS_TOKEN': gateway_access_token
+    }
+    
+    # Only add ANTHROPIC_API_KEY if it exists
+    if anthropic_api_key:
+        env_vars['ANTHROPIC_API_KEY'] = anthropic_api_key
     try:
         response = client.create_agent_runtime(
             agentRuntimeName=runtime_name,
@@ -113,10 +121,7 @@ def _create_agent_runtime(
             },
             networkConfiguration={"networkMode": "PUBLIC"},
             roleArn=role_arn,
-            environmentVariables={
-                'ANTHROPIC_API_KEY': anthropic_api_key,
-                'GATEWAY_ACCESS_TOKEN': gateway_access_token
-            }
+            environmentVariables=env_vars
         )
         
         logging.info(f"Agent Runtime created successfully!")
@@ -147,10 +152,7 @@ def _create_agent_runtime(
                             },
                             networkConfiguration={"networkMode": "PUBLIC"},
                             roleArn=role_arn,
-                            environmentVariables={
-                                'ANTHROPIC_API_KEY': anthropic_api_key,
-                                'GATEWAY_ACCESS_TOKEN': gateway_access_token
-                            }
+                            environmentVariables=env_vars
                         )
                         
                         logging.info(f"Agent Runtime recreated successfully!")
@@ -207,15 +209,14 @@ def main():
         logging.info(f"Loaded environment variables from {env_file}")
     else:
         logging.error(f".env file not found at {env_file}")
-        raise FileNotFoundError(f"Please create a .env file at {env_file} with ANTHROPIC_API_KEY and GATEWAY_ACCESS_TOKEN")
+        raise FileNotFoundError(f"Please create a .env file at {env_file} with GATEWAY_ACCESS_TOKEN and optionally ANTHROPIC_API_KEY")
     
     # Get environment variables
     anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
     gateway_access_token = os.getenv('GATEWAY_ACCESS_TOKEN')
     
     if not anthropic_api_key:
-        logging.error("ANTHROPIC_API_KEY not found in .env")
-        raise ValueError("ANTHROPIC_API_KEY must be set in .env")
+        logging.info("ANTHROPIC_API_KEY not found in .env - Amazon Bedrock will be used as the provider")
     
     if not gateway_access_token:
         logging.error("GATEWAY_ACCESS_TOKEN not found in .env")
