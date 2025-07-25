@@ -101,17 +101,34 @@ def _create_agent_runtime(
     role_arn: str,
     anthropic_api_key: str,
     gateway_access_token: str,
+    llm_provider: str = "bedrock",
     force_recreate: bool = False
 ) -> None:
     """Create an agent runtime with error handling for conflicts."""
     # Build environment variables
     env_vars = {
-        'GATEWAY_ACCESS_TOKEN': gateway_access_token
+        'GATEWAY_ACCESS_TOKEN': gateway_access_token,
+        'LLM_PROVIDER': llm_provider
     }
     
     # Only add ANTHROPIC_API_KEY if it exists
     if anthropic_api_key:
         env_vars['ANTHROPIC_API_KEY'] = anthropic_api_key
+    
+    # Check for DEBUG environment variable
+    debug_mode = os.getenv('DEBUG', 'false')
+    if debug_mode.lower() in ('true', '1', 'yes'):
+        env_vars['DEBUG'] = 'true'
+        logging.info("Debug mode enabled for agent runtime")
+    
+    # Log environment variables being passed to AgentCore (mask sensitive data)
+    logging.info("🚀 Environment variables being passed to AgentCore Runtime:")
+    for key, value in env_vars.items():
+        if key in ['ANTHROPIC_API_KEY', 'GATEWAY_ACCESS_TOKEN']:
+            masked_value = f"{'*' * 20}...{value[-8:] if len(value) > 8 else '***'}"
+            logging.info(f"   {key}: {masked_value}")
+        else:
+            logging.info(f"   {key}: {value}")
     try:
         response = client.create_agent_runtime(
             agentRuntimeName=runtime_name,
@@ -228,9 +245,18 @@ def main():
     # Get environment variables
     anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
     gateway_access_token = os.getenv('GATEWAY_ACCESS_TOKEN')
+    llm_provider = os.getenv('LLM_PROVIDER', 'bedrock')
     
-    if not anthropic_api_key:
-        logging.info("ANTHROPIC_API_KEY not found in .env - Amazon Bedrock will be used as the provider")
+    # Log environment variable values (mask sensitive data)
+    logging.info("📋 Environment variables loaded:")
+    logging.info(f"   LLM_PROVIDER: {llm_provider}")
+    if anthropic_api_key:
+        logging.info(f"   ANTHROPIC_API_KEY: {'*' * 20}...{anthropic_api_key[-8:] if len(anthropic_api_key) > 8 else '***'}")
+    else:
+        logging.info("   ANTHROPIC_API_KEY: Not set - Amazon Bedrock will be used as the provider")
+    
+    if gateway_access_token:
+        logging.info(f"   GATEWAY_ACCESS_TOKEN: {'*' * 20}...{gateway_access_token[-8:] if len(gateway_access_token) > 8 else '***'}")
     
     if not gateway_access_token:
         logging.error("GATEWAY_ACCESS_TOKEN not found in .env")
@@ -245,6 +271,7 @@ def main():
         role_arn=args.role_arn,
         anthropic_api_key=anthropic_api_key,
         gateway_access_token=gateway_access_token,
+        llm_provider=llm_provider,
         force_recreate=args.force_recreate
     )
 

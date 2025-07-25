@@ -103,6 +103,7 @@ For comprehensive information about the SRE Agent system, please refer to the fo
 - **[Deployment and Security](docs/deployment-and-security.md)** - Sample deployment information and security considerations
 - **[Verification](docs/verification.md)** - Ground truth verification and report validation
 - **[Development](docs/development.md)** - Testing, code quality, and contribution guidelines
+- **[Deployment Guide](docs/deployment-guide.md)** - Complete deployment guide for Amazon Bedrock AgentCore Runtime
 
 ## Prerequisites
 
@@ -195,7 +196,7 @@ sre-agent --interactive
 # /exit     - Exit the interactive session
 ```
 
-### Advanced Options
+#### Advanced Options
 ```bash
 # Use Amazon Bedrock
 sre-agent --provider bedrock --query "Check cluster health"
@@ -206,6 +207,19 @@ sre-agent --output-dir ./investigations --query "Analyze memory usage trends"
 # Use Amazon Bedrock with specific profile
 AWS_PROFILE=production sre-agent --provider bedrock --interactive
 ```
+
+## Deploying Your Agent on Amazon Bedrock AgentCore Runtime
+
+For production deployments, you can deploy the SRE Agent directly to Amazon Bedrock AgentCore Runtime. This provides a scalable, managed environment for running your agent with enterprise-grade security and monitoring.
+
+The AgentCore Runtime deployment supports:
+- **Container-based deployment** with automatic scaling
+- **Multiple LLM providers** (Amazon Bedrock or Anthropic Claude)
+- **Debug mode** for troubleshooting and development
+- **Environment-based configuration** for different deployment stages
+- **Secure credential management** through AWS IAM and environment variables
+
+For complete step-by-step instructions including local testing, container building, and production deployment, see the **[Deployment Guide](docs/deployment-guide.md)**.
 
 ## Managing OpenAPI Specifications
 

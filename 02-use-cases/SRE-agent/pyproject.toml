@@ -12,11 +12,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 
 dependencies = [
-    "langgraph>=0.2.39",
-    "langchain-core>=0.3.15",
-    "langchain-aws>=0.2.6",
-    "langchain-anthropic>=0.2.4",
-    "langchain-mcp-adapters>=0.1.0",
+    "langgraph>=0.5.4",
+    "langchain-core>=0.3.72",
+    "langchain-aws>=0.2.29",
+    "langchain-anthropic>=0.3.17",
+    "langchain-mcp-adapters>=0.1.9",
     "langchain[aws]",
     "langchain-community",
     "langsmith[otel]",

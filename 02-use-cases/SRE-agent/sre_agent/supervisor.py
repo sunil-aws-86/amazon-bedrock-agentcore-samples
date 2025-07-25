@@ -20,12 +20,13 @@ logging.basicConfig(
     format="%(asctime)s,p%(process)s,{%(filename)s:%(lineno)d},%(levelname)s,%(message)s",
 )
 
-# Suppress MCP protocol logs
-mcp_loggers = ["streamable_http", "mcp.client.streamable_http", "httpx", "httpcore"]
-
-for logger_name in mcp_loggers:
-    mcp_logger = logging.getLogger(logger_name)
-    mcp_logger.setLevel(logging.WARNING)
+# Enable HTTP and MCP protocol logs for debugging
+# Comment out the following lines to suppress these logs if needed
+# mcp_loggers = ["streamable_http", "mcp.client.streamable_http", "httpx", "httpcore"]
+# 
+# for logger_name in mcp_loggers:
+#     mcp_logger = logging.getLogger(logger_name)
+#     mcp_logger.setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ class SupervisorAgent:
         self.llm_provider = llm_provider
         self.llm = self._create_llm(**llm_kwargs)
         self.system_prompt = _read_supervisor_prompt()
-        self.formatter = create_formatter()
+        self.formatter = create_formatter(llm_provider=llm_provider)
 
     def _create_llm(self, **kwargs):
         """Create LLM instance based on provider."""
@@ -122,7 +123,7 @@ class SupervisorAgent:
             )
         elif self.llm_provider == "bedrock":
             return ChatBedrock(
-                model_id=kwargs.get("model_id", "us.amazon.nova-micro-v1:0"),
+                model_id=kwargs.get("model_id", "us.anthropic.claude-3-7-sonnet-20250219-v1:0"),
                 region_name=kwargs.get("region_name", "us-east-1"),
                 model_kwargs={
                     "temperature": kwargs.get("temperature", 0.1),
@@ -196,7 +197,10 @@ Return a structured plan."""
             # First time - create investigation plan
             plan = await self.create_investigation_plan(state)
 
-            if not plan.auto_execute:
+            # Check if we should auto-approve the plan (defaults to False if not set)
+            auto_approve = state.get("auto_approve_plan", False)
+
+            if not plan.auto_execute and not auto_approve:
                 # Complex plan - present to user for approval
                 plan_text = self._format_plan_markdown(plan)
                 return {
@@ -340,6 +344,10 @@ Present the results clearly:
 3. **Next Steps**: What happens next (if plan continues) or recommendations
 
 Keep it professional and focused on the investigation results."""
+            
+            # If auto_approve_plan is set, add instruction to not ask follow-up questions
+            if state.get('auto_approve_plan', False):
+                aggregation_prompt += "\n\nIMPORTANT: Do not ask any follow-up questions or suggest that the user can ask for more details. Provide a complete, conclusive response."
             else:
                 # Standard aggregation
                 aggregation_prompt = f"""You are synthesizing findings from specialized agents.
@@ -355,6 +363,10 @@ Create a comprehensive response that:
 3. **Provides actionable recommendations**
 
 Keep the response professional and focused."""
+            
+            # If auto_approve_plan is set, add instruction to not ask follow-up questions
+            if state.get('auto_approve_plan', False):
+                aggregation_prompt += "\n\nIMPORTANT: Do not ask any follow-up questions or suggest that the user can ask for more details. Provide a complete, conclusive response."
 
             response = await self.llm.ainvoke(
                 [

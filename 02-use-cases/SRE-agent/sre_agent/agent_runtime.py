@@ -14,12 +14,18 @@ from langchain_core.tools import BaseTool
 from .multi_agent_langgraph import create_multi_agent_system
 from .agent_state import AgentState
 
-# Configure logging with basicConfig
-logging.basicConfig(
-    level=logging.INFO,
-    # Define log message format
-    format="%(asctime)s,p%(process)s,{%(filename)s:%(lineno)d},%(levelname)s,%(message)s",
-)
+# Import logging config
+from .logging_config import configure_logging
+
+# Configure logging based on DEBUG environment variable
+# This ensures debug mode works even when not run via __main__
+if not logging.getLogger().handlers:
+    # Check if DEBUG is already set in environment
+    debug_from_env = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
+    configure_logging(debug_from_env)
+
+# Disable uvicorn access logs for /ping endpoint
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +53,17 @@ async def initialize_agent():
     try:
         logger.info("Initializing SRE Agent system...")
         
-        # Use the same initialization as the CLI
-        provider = "anthropic"  # Default provider
+        # Get provider from environment variable with bedrock as default
+        provider = os.getenv("LLM_PROVIDER", "bedrock").lower()
         
-        # Check if we should use bedrock instead
-        if not os.getenv("ANTHROPIC_API_KEY") and os.getenv("AWS_PROFILE"):
+        # Validate provider
+        if provider not in ["anthropic", "bedrock"]:
+            logger.warning(f"Invalid provider '{provider}', defaulting to 'bedrock'")
             provider = "bedrock"
+        
+        logger.info(f"Environment LLM_PROVIDER: {os.getenv('LLM_PROVIDER', 'NOT_SET')}")
+        logger.info(f"Using LLM provider: {provider}")
+        logger.info(f"Calling create_multi_agent_system with provider: {provider}")
         
         # Create multi-agent system using the same function as CLI
         agent_graph, tools = await create_multi_agent_system(provider)
@@ -72,6 +83,8 @@ async def startup_event():
 async def invoke_agent(request: InvocationRequest):
     """Main agent invocation endpoint."""
     global agent_graph, tools
+    
+    logger.info("Received invocation request")
     
     try:
         # Ensure agent is initialized
@@ -97,19 +110,40 @@ async def invoke_agent(request: InvocationRequest):
             "requires_collaboration": False,
             "agents_invoked": [],
             "final_response": None,
+            "auto_approve_plan": True,  # Always auto-approve plans in runtime mode
         }
         
         # Process through the agent graph exactly like the CLI
         final_response = ""
         
+        logger.info("Starting agent graph execution")
+        
         async for event in agent_graph.astream(initial_state):
             for node_name, node_output in event.items():
+                logger.info(f"Processing node: {node_name}")
+                
+                # Log key events from each node
+                if node_name == "supervisor":
+                    next_agent = node_output.get("next", "")
+                    metadata = node_output.get("metadata", {})
+                    logger.info(f"Supervisor routing to: {next_agent}")
+                    if metadata.get("routing_reasoning"):
+                        logger.info(f"Routing reasoning: {metadata['routing_reasoning']}")
+                
+                elif node_name in ["kubernetes_agent", "logs_agent", "metrics_agent", "runbooks_agent"]:
+                    agent_results = node_output.get("agent_results", {})
+                    logger.info(f"{node_name} completed with results")
+                
                 # Capture final response from aggregate node
-                if node_name == "aggregate":
+                elif node_name == "aggregate":
                     final_response = node_output.get("final_response", "")
+                    logger.info("Aggregate node completed, final response captured")
         
         if not final_response:
+            logger.warning("No final response received from agent graph")
             final_response = "I encountered an issue processing your request. Please try again."
+        else:
+            logger.info(f"Final response length: {len(final_response)} characters")
         
         # Simple response format
         response_data = {
@@ -119,12 +153,14 @@ async def invoke_agent(request: InvocationRequest):
         }
         
         logger.info("Successfully processed agent request")
+        logger.info("Returning invocation response")
         return InvocationResponse(output=response_data)
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Agent processing failed: {e}")
+        logger.exception("Full exception details:")
         raise HTTPException(status_code=500, detail=f"Agent processing failed: {str(e)}")
 
 @app.get("/ping")
@@ -189,5 +225,35 @@ def invoke_sre_agent(prompt: str, provider: str = "anthropic") -> str:
 
 
 if __name__ == "__main__":
+    import argparse
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080) 
+    
+    parser = argparse.ArgumentParser(description="SRE Agent Runtime")
+    parser.add_argument(
+        "--provider", 
+        choices=["anthropic", "bedrock"], 
+        default=os.getenv("LLM_PROVIDER", "bedrock"),
+        help="LLM provider to use (default: bedrock)"
+    )
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
+    parser.add_argument("--port", type=int, default=8080, help="Port to bind to")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging and trace output",
+    )
+    
+    args = parser.parse_args()
+    
+    # Configure logging based on debug flag
+    from .logging_config import configure_logging
+    debug_enabled = configure_logging(args.debug)
+    
+    # Set environment variables
+    os.environ["LLM_PROVIDER"] = args.provider
+    os.environ["DEBUG"] = "true" if debug_enabled else "false"
+    
+    logger.info(f"Starting SRE Agent Runtime with provider: {args.provider}")
+    if debug_enabled:
+        logger.info("Debug logging enabled")
+    uvicorn.run(app, host=args.host, port=args.port) 

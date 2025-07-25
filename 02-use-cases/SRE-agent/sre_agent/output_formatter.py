@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 # Configure logging with basicConfig
@@ -16,8 +17,38 @@ logger = logging.getLogger(__name__)
 class SREOutputFormatter:
     """Simple markdown output formatter for SRE multi-agent responses."""
 
-    def __init__(self):
-        pass
+    def __init__(self, llm_provider: str = None):
+        # Get provider from parameter, environment, or default to bedrock
+        self.llm_provider = llm_provider or os.getenv("LLM_PROVIDER", "bedrock")
+        logger.info(f"SREOutputFormatter initialized with LLM provider: {self.llm_provider}")
+
+
+    def _create_llm(self, **kwargs):
+        """Create LLM instance based on configured provider."""
+        if self.llm_provider == "anthropic":
+            from langchain_anthropic import ChatAnthropic
+            model_id = kwargs.get("model_id", "claude-sonnet-4-20250514")
+            logger.info(f"Creating LLM for output formatter - Provider: Anthropic, Model: {model_id}")
+            return ChatAnthropic(
+                model=model_id,
+                max_tokens=kwargs.get("max_tokens", 1000),
+                temperature=kwargs.get("temperature", 0.1),
+            )
+        elif self.llm_provider == "bedrock":
+            from langchain_aws import ChatBedrock
+            model_id = kwargs.get("model_id", "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
+            region = kwargs.get("region_name", "us-east-1")
+            logger.info(f"Creating LLM for output formatter - Provider: Amazon Bedrock, Model: {model_id}, Region: {region}")
+            return ChatBedrock(
+                model_id=model_id,
+                region_name=region,
+                model_kwargs={
+                    "temperature": kwargs.get("temperature", 0.1),
+                    "max_tokens": kwargs.get("max_tokens", 1000),
+                },
+            )
+        else:
+            raise ValueError(f"Unsupported provider: {self.llm_provider}")
 
     def _extract_steps_from_response(self, response: str) -> List[str]:
         """Extract numbered steps from agent response."""
@@ -140,12 +171,10 @@ class SREOutputFormatter:
             return ""
 
         try:
-            from langchain_anthropic import ChatAnthropic
             from langchain_core.messages import HumanMessage, SystemMessage
             
-            # Create LLM instance
-            llm = ChatAnthropic(
-                model="claude-sonnet-4-20250514",
+            # Create LLM instance using configured provider
+            llm = self._create_llm(
                 max_tokens=1000,
                 temperature=0.1,
             )
@@ -282,6 +311,6 @@ Generate a concise, accurate executive summary based only on the evidence provid
         return "\n".join(output)
 
 
-def create_formatter() -> SREOutputFormatter:
+def create_formatter(llm_provider: str = None) -> SREOutputFormatter:
     """Create and return a new SRE output formatter instance."""
-    return SREOutputFormatter()
+    return SREOutputFormatter(llm_provider=llm_provider)

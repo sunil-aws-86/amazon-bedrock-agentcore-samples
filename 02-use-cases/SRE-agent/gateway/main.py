@@ -317,6 +317,7 @@ def create_gateway(
             authorizerConfiguration=auth_config,
             protocolConfiguration=protocol_configuration,
             description=description,
+            exceptionLevel='DEBUG'
         )
         logging.info(f"Created gateway: {response.get('gatewayId')}")
         return response

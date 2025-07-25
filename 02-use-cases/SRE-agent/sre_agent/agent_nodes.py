@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import asyncio
 import logging
 from functools import lru_cache
 from pathlib import Path
@@ -14,20 +15,7 @@ from langgraph.prebuilt import create_react_agent
 
 from .agent_state import AgentState
 
-# Configure logging with basicConfig
-logging.basicConfig(
-    level=logging.INFO,  # Set the log level to INFO
-    # Define log message format
-    format="%(asctime)s,p%(process)s,{%(filename)s:%(lineno)d},%(levelname)s,%(message)s",
-)
-
-# Suppress MCP protocol logs
-mcp_loggers = ["streamable_http", "mcp.client.streamable_http", "httpx", "httpcore"]
-
-for logger_name in mcp_loggers:
-    mcp_logger = logging.getLogger(logger_name)
-    mcp_logger.setLevel(logging.WARNING)
-
+# Logging will be configured by the main entry point
 logger = logging.getLogger(__name__)
 
 
@@ -39,18 +27,23 @@ def _load_agent_config() -> Dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def _create_llm(provider: str = "anthropic", **kwargs):
+def _create_llm(provider: str = "bedrock", **kwargs):
     """Create LLM instance based on provider."""
     if provider == "anthropic":
+        model_id = kwargs.get("model_id", "claude-sonnet-4-20250514")
+        logger.info(f"Creating LLM - Provider: Anthropic, Model: {model_id}")
         return ChatAnthropic(
-            model=kwargs.get("model_id", "claude-sonnet-4-20250514"),
+            model=model_id,
             max_tokens=kwargs.get("max_tokens", 4096),
             temperature=kwargs.get("temperature", 0.1),
         )
     elif provider == "bedrock":
+        model_id = kwargs.get("model_id", "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
+        region = kwargs.get("region_name", "us-east-1")
+        logger.info(f"Creating LLM - Provider: Amazon Bedrock, Model: {model_id}, Region: {region}")
         return ChatBedrock(
-            model_id=kwargs.get("model_id", "us.amazon.nova-micro-v1:0"),
-            region_name=kwargs.get("region_name", "us-east-1"),
+            model_id=model_id,
+            region_name=region,
             model_kwargs={
                 "temperature": kwargs.get("temperature", 0.1),
                 "max_tokens": kwargs.get("max_tokens", 4096),
@@ -93,12 +86,15 @@ class BaseAgentNode:
         name: str,
         description: str,
         tools: List[BaseTool],
-        llm_provider: str = "anthropic",
+        llm_provider: str = "bedrock",
         **llm_kwargs,
     ):
         self.name = name
         self.description = description
         self.tools = tools
+        self.llm_provider = llm_provider
+        
+        logger.info(f"Initializing {name} with LLM provider: {llm_provider}")
         self.llm = _create_llm(llm_provider, **llm_kwargs)
 
         # Create the react agent
@@ -111,6 +107,10 @@ class BaseAgentNode:
 
 You have access to specific tools related to your domain. Use them to help answer questions
 and solve problems related to your area of expertise. Be concise and factual in your responses.
+
+TOOL USAGE CONSTRAINT: To ensure system reliability, you should call tools SEQUENTIALLY, not in parallel.
+NEVER call multiple tools at the same time. Always wait for one tool to complete before calling the next one.
+This sequential approach prevents timeouts and ensures all tool responses are properly received.
 
 CRITICAL: ALWAYS quote your data sources when making statements about investigations and recommendations. 
 For every claim, finding, or recommendation you make, include the specific source:
@@ -261,6 +261,10 @@ FORBIDDEN EXAMPLES:
             agent_prompt = (
                 f"As the {self.name}, help with: {state.get('current_query', '')}"
             )
+            
+            # If auto_approve_plan is set, add instruction to not ask follow-up questions
+            if state.get('auto_approve_plan', False):
+                agent_prompt += "\n\nIMPORTANT: Provide a complete, actionable response without asking any follow-up questions. Do not ask if the user wants more details or if they would like you to investigate further."
 
             # We'll collect all messages and the final response
             all_messages = []
@@ -270,28 +274,71 @@ FORBIDDEN EXAMPLES:
             system_message = SystemMessage(content=self._get_system_prompt())
             user_message = HumanMessage(content=agent_prompt)
 
-            # Stream the agent execution to capture tool calls
-            async for chunk in self.agent.astream(
-                {"messages": [system_message] + messages + [user_message]}
-            ):
-                if "agent" in chunk:
-                    agent_step = chunk["agent"]
-                    if "messages" in agent_step:
-                        for msg in agent_step["messages"]:
-                            all_messages.append(msg)
-                            # Always capture the latest content from AIMessages
-                            if (
-                                hasattr(msg, "content")
-                                and hasattr(msg, "__class__")
-                                and "AIMessage" in str(msg.__class__)
-                            ):
-                                agent_response = msg.content
+            # Stream the agent execution to capture tool calls with timeout
+            logger.info(f"{self.name} - Starting agent execution")
+            
+            try:
+                # Add timeout to prevent infinite hanging (120 seconds)
+                timeout_seconds = 120
+                
+                async def execute_agent():
+                    nonlocal agent_response  # Fix scope issue - allow access to outer variable
+                    chunk_count = 0
+                    async for chunk in self.agent.astream(
+                        {"messages": [system_message] + messages + [user_message]}
+                    ):
+                        chunk_count += 1
+                        logger.info(f"{self.name} - Processing chunk #{chunk_count}: {list(chunk.keys())}")
+                        
+                        if "agent" in chunk:
+                            agent_step = chunk["agent"]
+                            if "messages" in agent_step:
+                                for msg in agent_step["messages"]:
+                                    all_messages.append(msg)
+                                    # Log tool calls being made
+                                    if hasattr(msg, "tool_calls") and msg.tool_calls:
+                                        logger.info(f"{self.name} - Agent making {len(msg.tool_calls)} tool calls")
+                                        for tc in msg.tool_calls:
+                                            tool_name = tc.get('name', 'unknown')
+                                            tool_args = tc.get('args', {})
+                                            tool_id = tc.get('id', 'unknown')
+                                            logger.info(f"{self.name} - Tool call: {tool_name} (id: {tool_id})")
+                                            logger.debug(f"{self.name} - Tool args: {tool_args}")
+                                    # Always capture the latest content from AIMessages
+                                    if (
+                                        hasattr(msg, "content")
+                                        and hasattr(msg, "__class__")
+                                        and "AIMessage" in str(msg.__class__)
+                                    ):
+                                        agent_response = msg.content
+                                        logger.info(f"{self.name} - Agent response captured: {agent_response[:100]}... (total: {len(str(agent_response))} chars)")
 
-                elif "tools" in chunk:
-                    tools_step = chunk["tools"]
-                    if "messages" in tools_step:
-                        for msg in tools_step["messages"]:
-                            all_messages.append(msg)
+                        elif "tools" in chunk:
+                            tools_step = chunk["tools"]
+                            logger.info(f"{self.name} - Tools chunk received, processing {len(tools_step.get('messages', []))} messages")
+                            if "messages" in tools_step:
+                                for msg in tools_step["messages"]:
+                                    all_messages.append(msg)
+                                    # Log tool executions
+                                    if hasattr(msg, 'tool_call_id'):
+                                        tool_name = getattr(msg, 'name', 'unknown')
+                                        tool_call_id = getattr(msg, 'tool_call_id', 'unknown')
+                                        content_preview = str(msg.content)[:200] if hasattr(msg, 'content') else 'No content'
+                                        logger.info(f"{self.name} - Tool response received: {tool_name} (id: {tool_call_id}), content: {content_preview}...")
+                                        logger.debug(f"{self.name} - Full tool response: {msg.content if hasattr(msg, 'content') else 'No content'}")
+                
+                logger.info(f"{self.name} - Executing agent with timeout of {timeout_seconds} seconds")
+                await asyncio.wait_for(execute_agent(), timeout=timeout_seconds)
+                logger.info(f"{self.name} - Agent execution completed")
+                
+            except asyncio.TimeoutError:
+                logger.error(f"{self.name} - Agent execution timed out after {timeout_seconds} seconds")
+                agent_response = f"Agent execution timed out after {timeout_seconds} seconds. The agent may be stuck on a tool call or LLM response."
+                
+            except Exception as e:
+                logger.error(f"{self.name} - Agent execution failed: {e}")
+                logger.exception("Full exception details:")
+                agent_response = f"Agent execution failed: {str(e)}"
 
             # Debug: Check what we captured
             logger.info(
