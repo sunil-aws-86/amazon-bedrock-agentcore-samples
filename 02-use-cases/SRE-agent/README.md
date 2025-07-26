@@ -100,7 +100,7 @@ For comprehensive information about the SRE Agent system, please refer to the fo
 - **[Configuration](docs/configuration.md)** - Complete configuration guides for environment variables, agents, and gateway
 - **[Demo Environment](docs/demo-environment.md)** - Demo scenarios, data customization, and testing setup
 - **[Example Use Cases](docs/example-use-cases.md)** - Detailed walkthroughs and interactive troubleshooting examples
-- **[Deployment and Security](docs/deployment-and-security.md)** - Sample deployment information and security considerations
+- **[Security](docs/security.md)** - Security best practices and considerations for production deployment
 - **[Verification](docs/verification.md)** - Ground truth verification and report validation
 - **[Development](docs/development.md)** - Testing, code quality, and contribution guidelines
 - **[Deployment Guide](docs/deployment-guide.md)** - Complete deployment guide for Amazon Bedrock AgentCore Runtime
