@@ -2,7 +2,7 @@
 
 ## Overview
 
-The SRE Agent is a multi-agent system for Site Reliability Engineers that helps investigate infrastructure issues. Built on the Model Context Protocol (MCP) and powered by Amazon Nova and Anthropic Claude models (Claude can be accessed through Amazon Bedrock or directly through Anthropic), this system uses specialized AI agents that collaborate to investigate issues, analyze logs, monitor performance metrics, and execute operational procedures. The AgentCore Gateway provides access to data sources and systems available as MCP tools.
+The SRE Agent is a multi-agent system for Site Reliability Engineers that helps investigate infrastructure issues. Built on the Model Context Protocol (MCP) and powered by Amazon Nova and Anthropic Claude models (Claude can be accessed through Amazon Bedrock or directly through Anthropic), this system uses specialized AI agents that collaborate to investigate issues, analyze logs, monitor performance metrics, and execute operational procedures. The AgentCore Gateway provides access to data sources and systems available as MCP tools. This example also demonstrates how to deploy the agent using the Amazon Bedrock AgentCore Runtime for production environments.
 
 ### Use case details
 | Information         | Details                                                                                                                             |
@@ -121,7 +121,7 @@ For comprehensive information about the SRE Agent system, please refer to the fo
 ```bash
 # Clone the repository
 git clone https://github.com/awslabs/amazon-bedrock-agentcore-samples
-cd amazon-bedrock-agentcore-samples/02-use-cases/04-SRE-agent
+cd amazon-bedrock-agentcore-samples/02-use-cases/SRE-agent
 
 # Create and activate a virtual environment
 uv venv --python 3.12
@@ -207,6 +207,83 @@ sre-agent --output-dir ./investigations --query "Analyze memory usage trends"
 # Use Amazon Bedrock with specific profile
 AWS_PROFILE=production sre-agent --provider bedrock --interactive
 ```
+
+## Development to Production Deployment Flow
+
+The SRE Agent follows a structured deployment process from local development to production on Amazon Bedrock AgentCore Runtime:
+
+```mermaid
+graph TB
+    subgraph "1. Local Development"
+        DEV["Develop Agent<br/>Python Package"]
+        CLI["sre_agent module<br/>Local CLI testing"]
+        GW1["AgentCore Gateway<br/>MCP Tools Access"]
+        
+        DEV --> CLI
+        CLI -.->|"MCP Protocol"| GW1
+    end
+    
+    subgraph "2. Containerization"
+        RUNTIME["agent_runtime.py<br/>FastAPI/Uvicorn Server"]
+        DOCKER["Dockerfile<br/>ARM64 Container"]
+        BUILD["build_and_deploy.sh<br/>Build Script"]
+        
+        CLI --> RUNTIME
+        RUNTIME --> DOCKER
+        DOCKER --> BUILD
+    end
+    
+    subgraph "3. Local Container Testing"
+        LOCAL["Local Docker Run<br/>Port 8080"]
+        CURL["curl Testing<br/>Health & Invocation"]
+        GW2["AgentCore Gateway<br/>Same MCP Tools"]
+        
+        BUILD --> LOCAL
+        LOCAL --> CURL
+        LOCAL -.->|"MCP Protocol"| GW2
+    end
+    
+    subgraph "4. Production Deployment"
+        ECR["Amazon ECR<br/>Container Registry"]
+        DEPLOY["deploy_agent_runtime.py<br/>Deploy to AgentCore"]
+        AGENTCORE["Amazon Bedrock<br/>AgentCore Runtime"]
+        INVOKE["invoke_agent_runtime.py<br/>Test Production"]
+        GW3["AgentCore Gateway<br/>Production MCP Tools"]
+        
+        BUILD --> ECR
+        ECR --> DEPLOY
+        DEPLOY --> AGENTCORE
+        AGENTCORE --> INVOKE
+        AGENTCORE -.->|"MCP Protocol"| GW3
+    end
+    
+    subgraph "deployment/ folder"
+        BUILD
+        DEPLOY
+        INVOKE
+    end
+    
+    classDef dev fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef container fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef test fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef prod fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef gateway fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    
+    class DEV,CLI dev
+    class RUNTIME,DOCKER,BUILD container
+    class LOCAL,CURL test
+    class ECR,DEPLOY,AGENTCORE,INVOKE prod
+    class GW1,GW2,GW3 gateway
+```
+
+### Key Development Stages:
+
+1. **Local Development**: Create your agent as a Python package using the AgentCore SDK
+2. **Containerization**: Add `agent_runtime.py` with FastAPI server and Dockerfile for ARM64
+3. **Local Testing**: Build and test container locally with curl commands
+4. **Production Deployment**: Push to ECR and deploy to Amazon Bedrock AgentCore Runtime
+
+The `deployment/` folder contains all deployment utilities, keeping deployment code separate from your core agent logic.
 
 ## Deploying Your Agent on Amazon Bedrock AgentCore Runtime
 

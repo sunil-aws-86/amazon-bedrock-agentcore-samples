@@ -22,13 +22,13 @@ if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
     echo "  ./build_and_deploy.sh"
     echo ""
     echo "  # Deploy with custom repo name"
-    echo "  ./build_and_deploy.sh my-custom-sre-agent"
+    echo "  ./build_and_deploy.sh my_custom_sre_agent"
     echo ""
     echo "  # Local build for testing"
     echo "  LOCAL_BUILD=true ./build_and_deploy.sh"
     echo ""
     echo "  # Deploy with debug and anthropic provider"
-    echo "  DEBUG=true LLM_PROVIDER=anthropic ./build_and_deploy.sh my-sre-agent"
+    echo "  DEBUG=true LLM_PROVIDER=anthropic ./build_and_deploy.sh my_sre_agent"
     exit 0
 fi
 

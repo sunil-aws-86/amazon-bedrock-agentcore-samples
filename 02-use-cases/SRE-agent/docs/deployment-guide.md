@@ -53,10 +53,6 @@ Create and configure your environment files:
 # Setup CLI environment file
 cp sre_agent/.env.example sre_agent/.env
 # Edit sre_agent/.env with your configuration
-
-# Setup deployment environment file  
-cp deployment/.env.example deployment/.env
-# Edit deployment/.env with your configuration
 ```
 
 **Note**: Environment variables can be overridden at runtime, but having .env files ensures consistent configuration.
@@ -99,7 +95,7 @@ The build script accepts an optional ECR repository name and uses different Dock
 LOCAL_BUILD=true ./deployment/build_and_deploy.sh
 
 # Build with custom repository name
-LOCAL_BUILD=true ./deployment/build_and_deploy.sh my-custom-sre-agent
+LOCAL_BUILD=true ./deployment/build_and_deploy.sh my_custom_sre_agent
 
 # View help for all options
 ./deployment/build_and_deploy.sh --help
@@ -172,13 +168,13 @@ Once local container testing is successful, deploy to AgentCore.
 ./deployment/build_and_deploy.sh
 
 # Deploy with custom repository name
-./deployment/build_and_deploy.sh my-production-sre-agent
+./deployment/build_and_deploy.sh my_production_sre_agent
 
 # Deploy with debug enabled (environment variable override)
 DEBUG=true ./deployment/build_and_deploy.sh
 
 # Deploy with specific provider
-LLM_PROVIDER=bedrock DEBUG=true ./deployment/build_and_deploy.sh my-sre-agent
+LLM_PROVIDER=bedrock DEBUG=true ./deployment/build_and_deploy.sh my_sre_agent
 ```
 
 #### 3.2 Deploy to AgentCore with Anthropic
@@ -191,7 +187,7 @@ LLM_PROVIDER=anthropic ./deployment/build_and_deploy.sh
 DEBUG=true LLM_PROVIDER=anthropic ./deployment/build_and_deploy.sh
 
 # Override API key via environment variable
-LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-your-key ./deployment/build_and_deploy.sh my-sre-agent
+LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-your-key ./deployment/build_and_deploy.sh my_sre_agent
 ```
 
 **Build Script Usage:**
@@ -201,6 +197,7 @@ LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-your-key ./deployment/build_and_
 
 # The script accepts one optional argument: ECR repository name
 # Default repository name is 'sre_agent'
+# Note: Use underscores (_) instead of hyphens (-) in repository names
 ```
 
 **Expected Output**: The script will build, push to ECR, and deploy to AgentCore Runtime.
@@ -266,7 +263,7 @@ docker run -p 8080:8080 --env-file sre_agent/.env -e DEBUG=true sre_agent:latest
 DEBUG=true ./deployment/build_and_deploy.sh
 
 # Custom repository name with debug
-DEBUG=true ./deployment/build_and_deploy.sh my-debug-sre-agent
+DEBUG=true ./deployment/build_and_deploy.sh my_debug_sre_agent
 ```
 
 ### Debug Output Examples
@@ -314,7 +311,7 @@ uv run sre-agent --provider bedrock --prompt "your query"
 docker run -p 8080:8080 --env-file sre_agent/.env sre_agent:latest
 
 # Deployment (reads from deployment/.env, can override via environment variable)
-LLM_PROVIDER=bedrock ./deployment/build_and_deploy.sh my-sre-agent
+LLM_PROVIDER=bedrock ./deployment/build_and_deploy.sh my_sre_agent
 ```
 
 ### Using Anthropic Claude
@@ -326,7 +323,7 @@ uv run sre-agent --provider anthropic --prompt "your query"
 docker run -p 8080:8080 --env-file sre_agent/.env sre_agent:latest
 
 # Deployment (reads from deployment/.env, can override via environment variable)
-LLM_PROVIDER=anthropic ./deployment/build_and_deploy.sh my-sre-agent
+LLM_PROVIDER=anthropic ./deployment/build_and_deploy.sh my_sre_agent
 
 # Override API key via environment variable (if not in deployment/.env)
 LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-xxx ./deployment/build_and_deploy.sh
