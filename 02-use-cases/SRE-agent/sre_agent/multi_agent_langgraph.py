@@ -20,6 +20,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.errors import GraphRecursionError
 
 from .agent_state import AgentState
+from .constants import SREConstants
 from .graph_builder import build_multi_agent_graph
 from .logging_config import configure_logging, should_show_debug_traces
 
@@ -42,9 +43,9 @@ class Spinner:
         self.message = message
         self.show_time = show_time
         self.spinning = False
-        self.thread = None
-        self.start_time = None
-        self.spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+        self.thread: Optional[threading.Thread] = None
+        self.start_time: Optional[float] = None
+        self.spinner_chars = SREConstants.app.spinner_chars
 
     def __enter__(self):
         self.start()
@@ -105,7 +106,15 @@ def _save_final_response_to_markdown(
 
     # Create filename with query and timestamp
     # Clean the query string for filename use
-    clean_query = query.replace(" ", "_").replace("/", "_").replace("\\", "_").replace("?", "_").replace(":", "_").replace(",", "_").replace(".", "_")
+    clean_query = (
+        query.replace(" ", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
+        .replace("?", "_")
+        .replace(":", "_")
+        .replace(",", "_")
+        .replace(".", "_")
+    )
     # Remove special characters that might cause issues
     clean_query = "".join(c for c in clean_query if c.isalnum() or c in "_-")
     # Remove leading/trailing underscores and collapse multiple underscores
@@ -116,7 +125,7 @@ def _save_final_response_to_markdown(
     # Ensure we have a meaningful filename
     if not clean_query or len(clean_query) < 3:
         clean_query = "query"
-    
+
     timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
     filename = f"{clean_query}_{timestamp_str}.md"
     filepath = output_path / filename
@@ -234,7 +243,9 @@ async def create_multi_agent_system(
     try:
         client = create_mcp_client()
         # Add timeout for MCP tool loading to prevent hanging
-        all_mcp_tools = await asyncio.wait_for(client.get_tools(), timeout=30)
+        all_mcp_tools = await asyncio.wait_for(
+            client.get_tools(), timeout=SREConstants.timeouts.mcp_tools_timeout_seconds
+        )
 
         # Don't filter out x-amz-agentcore-search as it's a global tool
         mcp_tools = all_mcp_tools
@@ -286,7 +297,7 @@ async def create_multi_agent_system(
 def _save_conversation_state(
     messages: list,
     state: Dict[str, Any],
-    filename: str = ".multi_agent_conversation_state.json",
+    filename: str = SREConstants.app.conversation_state_file,
 ):
     """Save conversation state to a file."""
     try:
@@ -332,7 +343,7 @@ def _save_conversation_state(
 
 
 def _load_conversation_state(
-    filename: str = ".multi_agent_conversation_state.json",
+    filename: str = SREConstants.app.conversation_state_file,
 ) -> tuple[Optional[list], Optional[Dict[str, Any]]]:
     """Load conversation state from a file."""
     try:
@@ -362,14 +373,16 @@ async def _run_interactive_session(
     logger.info("🤖 Starting interactive multi-agent SRE assistant...")
     print("Commands:")
     print("  /exit or /quit - End the session")
-    print("  /clear - Clear conversation history") 
+    print("  /clear - Clear conversation history")
     print("  /save - Save conversation state")
     print("  /load - Load previous conversation state")
     print("  /savereport - Save the last query's investigation report")
     print("  /history - Show conversation history")
     print("  /agents - Show available agents")
     print("  /help - Show this help message")
-    print("\nNote: Investigation reports are not saved automatically in interactive mode.")
+    print(
+        "\nNote: Investigation reports are not saved automatically in interactive mode."
+    )
     print("      Use /savereport to save the last query's report when needed.")
     print("\n" + "=" * 80 + "\n")
 
@@ -452,7 +465,9 @@ async def _run_interactive_session(
                     else:
                         print("❌ Failed to save report")
                 else:
-                    print("❌ No investigation report available to save. Complete a query first.")
+                    print(
+                        "❌ No investigation report available to save. Complete a query first."
+                    )
                 continue
 
             elif user_input.lower() == "/history":
@@ -496,13 +511,19 @@ async def _run_interactive_session(
                 print("  /agents - Show available agents")
                 print("  /help - Show this help message")
                 print("\nReport Saving:")
-                print("  • Investigation reports are NOT saved automatically in interactive mode")
+                print(
+                    "  • Investigation reports are NOT saved automatically in interactive mode"
+                )
                 print("  • Use /savereport after completing a query to save its report")
                 print("  • Reports are saved as markdown files with descriptive names")
                 print("  • Use /save to save conversation state separately")
                 print("\nTips:")
-                print("  • Ask specific questions about infrastructure, logs, metrics, or procedures")
-                print("  • The agents will collaborate to provide comprehensive answers")
+                print(
+                    "  • Ask specific questions about infrastructure, logs, metrics, or procedures"
+                )
+                print(
+                    "  • The agents will collaborate to provide comprehensive answers"
+                )
                 print("  • You can continue conversations and ask follow-up questions")
                 continue
 
@@ -540,14 +561,16 @@ async def _run_interactive_session(
                 spinner.start()
 
                 # Stream with timeout protection
-                timeout_seconds = 600
+                timeout_seconds = SREConstants.timeouts.graph_execution_timeout_seconds
                 start_time = asyncio.get_event_loop().time()
-                
+
                 async for event in graph.astream(initial_state):
                     # Check for timeout
                     elapsed = asyncio.get_event_loop().time() - start_time
                     if elapsed > timeout_seconds:
-                        raise asyncio.TimeoutError(f"Graph execution exceeded {timeout_seconds} seconds")
+                        raise asyncio.TimeoutError(
+                            f"Graph execution exceeded {timeout_seconds} seconds"
+                        )
                     # Stop spinner when we get an event
                     if spinner:
                         spinner.stop()
@@ -657,8 +680,12 @@ async def _run_interactive_session(
                                                 ) in tool_args.items():
                                                     # Show full values
                                                     value_str = repr(arg_value)
-                                                    print(f"        {arg_name}={value_str}")
-                                                    logger.info(f"        {arg_name}={value_str}")
+                                                    print(
+                                                        f"        {arg_name}={value_str}"
+                                                    )
+                                                    logger.info(
+                                                        f"        {arg_name}={value_str}"
+                                                    )
                                             print(f"      ) [id: {tool_id}]")
                                             logger.info(f"      ) [id: {tool_id}]")
 
@@ -670,10 +697,14 @@ async def _run_interactive_session(
                                         )
                                         result_content = msg.content
 
-                                        print(f"   🛠️  {tool_name} [id: {tool_call_id}]:")
+                                        print(
+                                            f"   🛠️  {tool_name} [id: {tool_call_id}]:"
+                                        )
                                         if isinstance(result_content, str):
                                             try:
-                                                parsed_result = json.loads(result_content)
+                                                parsed_result = json.loads(
+                                                    result_content
+                                                )
                                                 # Pretty print full output
                                                 formatted = json.dumps(
                                                     parsed_result, indent=2
@@ -712,7 +743,9 @@ async def _run_interactive_session(
                                 if save_markdown:
                                     last_query = user_input
                                     last_response = final_response
-                                    print("\n💡 Use /savereport to save this investigation report.")
+                                    print(
+                                        "\n💡 Use /savereport to save this investigation report."
+                                    )
 
             except asyncio.TimeoutError:
                 if spinner:
@@ -720,7 +753,9 @@ async def _run_interactive_session(
                 print(
                     "\n❌ Error: Investigation timed out after 10 minutes. The system may be stuck."
                 )
-                print("💡 Tip: Try rephrasing your question or breaking it into smaller parts.")
+                print(
+                    "💡 Tip: Try rephrasing your question or breaking it into smaller parts."
+                )
                 logger.error("Graph execution timed out after 600 seconds")
             except GraphRecursionError:
                 if spinner:
@@ -784,8 +819,8 @@ async def main():
     )
     parser.add_argument(
         "--output-dir",
-        default="./reports",
-        help="Directory to save investigation reports (default: ./reports)",
+        default=SREConstants.app.default_output_dir,
+        help=f"Directory to save investigation reports (default: {SREConstants.app.default_output_dir})",
     )
     parser.add_argument(
         "--no-markdown",
@@ -794,10 +829,10 @@ async def main():
     )
 
     args = parser.parse_args()
-    
+
     # Configure logging based on debug flag
     debug_enabled = configure_logging(args.debug)
-    
+
     # Set environment variable so other modules can check debug status
     os.environ["DEBUG"] = "true" if debug_enabled else "false"
 
@@ -840,14 +875,16 @@ async def main():
 
             try:
                 # Stream with timeout protection
-                timeout_seconds = 600
+                timeout_seconds = SREConstants.timeouts.graph_execution_timeout_seconds
                 start_time = asyncio.get_event_loop().time()
-                
+
                 async for event in graph.astream(initial_state):
                     # Check for timeout
                     elapsed = asyncio.get_event_loop().time() - start_time
                     if elapsed > timeout_seconds:
-                        raise asyncio.TimeoutError(f"Graph execution exceeded {timeout_seconds} seconds")
+                        raise asyncio.TimeoutError(
+                            f"Graph execution exceeded {timeout_seconds} seconds"
+                        )
                     # Stop spinner when we get an event
                     if spinner:
                         spinner.stop()
@@ -956,8 +993,12 @@ async def main():
                                                 ) in tool_args.items():
                                                     # Show full values
                                                     value_str = repr(arg_value)
-                                                    print(f"        {arg_name}={value_str}")
-                                                    logger.info(f"        {arg_name}={value_str}")
+                                                    print(
+                                                        f"        {arg_name}={value_str}"
+                                                    )
+                                                    logger.info(
+                                                        f"        {arg_name}={value_str}"
+                                                    )
                                             print(f"      ) [id: {tool_id}]")
                                             logger.info(f"      ) [id: {tool_id}]")
 
@@ -969,10 +1010,14 @@ async def main():
                                         )
                                         result_content = msg.content
 
-                                        print(f"   🛠️  {tool_name} [id: {tool_call_id}]:")
+                                        print(
+                                            f"   🛠️  {tool_name} [id: {tool_call_id}]:"
+                                        )
                                         if isinstance(result_content, str):
                                             try:
-                                                parsed_result = json.loads(result_content)
+                                                parsed_result = json.loads(
+                                                    result_content
+                                                )
                                                 # Pretty print full output
                                                 formatted = json.dumps(
                                                     parsed_result, indent=2
@@ -1018,7 +1063,9 @@ async def main():
                 print(
                     "\n❌ Error: Investigation timed out after 10 minutes. The system may be stuck."
                 )
-                print("💡 Tip: Try rephrasing your question or breaking it into smaller parts.")
+                print(
+                    "💡 Tip: Try rephrasing your question or breaking it into smaller parts."
+                )
                 logger.error("Graph execution timed out after 600 seconds")
             finally:
                 # Always clean up spinner
