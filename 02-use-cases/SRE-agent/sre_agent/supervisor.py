@@ -14,6 +14,10 @@ from .agent_state import AgentState
 from .constants import SREConstants
 from .output_formatter import create_formatter
 from .prompt_loader import prompt_loader
+from .memory.client import SREMemoryClient
+from .memory.tools import SaveMemoryTool, RetrieveMemoryTool
+from .memory.hooks import MemoryHookProvider
+from .memory.config import _load_memory_config
 
 # Configure logging with basicConfig
 logging.basicConfig(
@@ -107,13 +111,31 @@ Always consider if a query requires multiple perspectives. For example:
 
 
 class SupervisorAgent:
-    """Supervisor agent that orchestrates other agents."""
+    """Supervisor agent that orchestrates other agents with memory capabilities."""
 
     def __init__(self, llm_provider: str = "anthropic", **llm_kwargs):
         self.llm_provider = llm_provider
         self.llm = self._create_llm(**llm_kwargs)
         self.system_prompt = _read_supervisor_prompt()
         self.formatter = create_formatter(llm_provider=llm_provider)
+        
+        # Initialize memory system
+        self.memory_config = _load_memory_config()
+        if self.memory_config.enabled:
+            self.memory_client = SREMemoryClient(
+                memory_name=self.memory_config.memory_name,
+                region=self.memory_config.region
+            )
+            self.save_memory_tool = SaveMemoryTool(self.memory_client)
+            self.retrieve_memory_tool = RetrieveMemoryTool(self.memory_client)
+            self.memory_hooks = MemoryHookProvider(self.memory_client)
+            logger.info("Memory system initialized for supervisor agent")
+        else:
+            self.memory_client = None
+            self.save_memory_tool = None
+            self.retrieve_memory_tool = None
+            self.memory_hooks = None
+            logger.info("Memory system disabled")
 
     def _create_llm(self, **kwargs):
         """Create LLM instance based on provider."""
@@ -138,18 +160,51 @@ class SupervisorAgent:
             raise ValueError(f"Unsupported provider: {self.llm_provider}")
 
     async def create_investigation_plan(self, state: AgentState) -> InvestigationPlan:
-        """Create an investigation plan for the user's query."""
+        """Create an investigation plan for the user's query with memory context."""
         current_query = state.get("current_query", "No query provided")
+        user_id = state.get("user_id", "default")
+        incident_id = state.get("incident_id")
+        
+        # Retrieve memory context if memory system is enabled
+        memory_context_text = ""
+        if self.memory_client:
+            try:
+                # Get memory context from hooks
+                memory_context = await self.memory_hooks.on_investigation_start(
+                    query=current_query,
+                    user_id=user_id,
+                    incident_id=incident_id
+                )
+                
+                # Store memory context in state
+                state["memory_context"] = memory_context
+                
+                # Format memory context for prompt
+                if memory_context.get("user_preferences"):
+                    memory_context_text += f"\nRelevant User Preferences:\n{json.dumps(memory_context['user_preferences'], indent=2)}\n"
+                
+                if memory_context.get("infrastructure_knowledge"):
+                    memory_context_text += f"\nRelevant Infrastructure Knowledge:\n{json.dumps(memory_context['infrastructure_knowledge'], indent=2)}\n"
+                
+                if memory_context.get("past_investigations"):
+                    memory_context_text += f"\nSimilar Past Investigations:\n{json.dumps(memory_context['past_investigations'], indent=2)}\n"
+                
+                logger.info(f"Retrieved memory context for planning: {len(memory_context.get('user_preferences', []))} preferences, {len(memory_context.get('infrastructure_knowledge', []))} knowledge items")
+                
+            except Exception as e:
+                logger.error(f"Failed to retrieve memory context: {e}")
+                memory_context_text = ""
 
         planning_prompt = f"""{self.system_prompt}
 
 User's query: {current_query}
-
+{memory_context_text}
 Create a simple, focused investigation plan with 2-3 steps maximum. Consider:
 - Start with the most relevant single agent
 - Add one follow-up agent only if clearly needed
 - Keep it simple - most queries need only 1-2 agents
 - Mark as simple unless it involves production changes or multiple domains
+- Take into account any user preferences and past investigation patterns shown above
 
 Return a structured plan."""
 
@@ -386,5 +441,16 @@ You can:
             )
 
             final_response = response.content
+
+        # Save investigation summary to memory if enabled
+        if self.memory_client and not metadata.get("plan_pending_approval"):
+            try:
+                await self.memory_hooks.on_investigation_complete(
+                    state=state,
+                    final_response=final_response
+                )
+                logger.info("Saved investigation summary to memory")
+            except Exception as e:
+                logger.error(f"Failed to save investigation summary: {e}")
 
         return {"final_response": final_response, "next": "FINISH"}
