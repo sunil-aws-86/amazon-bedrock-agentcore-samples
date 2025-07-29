@@ -6,8 +6,6 @@ This directory contains a complete local prototype of an auto insurance platform
 2. **Local MCP Server**: A Model Context Protocol server that exposes insurance tools to LLMs
 3. **Strands Insurance Agent**: An interactive agent that uses Claude 3.7 to interact with the insurance tools
 
-![System Architecture](local_strands_insurance_agent/strands_local_agent_memory.png)
-
 ## System Overview
 
 The local prototype demonstrates a complete agent-based architecture for insurance applications:
