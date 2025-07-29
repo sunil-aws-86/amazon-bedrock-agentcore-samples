@@ -84,7 +84,7 @@ A visualization and testing interface for the entire insurance platform system.
 
 ```bash
 # Navigate to the Insurance API directory
-cd insurance_api
+cd local_insurance_api
 
 # Create and activate virtual environment
 python -m venv venv
@@ -122,7 +122,7 @@ The MCP server will be available at `http://localhost:8000/mcp`.
 
 ```bash
 # Navigate to the Strands Agent directory
-cd strands_insurance_agent
+cd local_strands_insurance_agent
 
 # Create and activate virtual environment
 python -m venv venv
@@ -132,9 +132,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # Configure AWS credentials
-export AWS_ACCESS_KEY_ID=your_access_key
-export AWS_SECRET_ACCESS_KEY=your_secret_key
-export AWS_DEFAULT_REGION=us-west-2
+Configure credentials using [link](https://strandsagents.com/latest/documentation/docs/user-guide/quickstart/#configuring-credentials)
 
 # Start the interactive agent
 python interactive_insurance_agent.py
@@ -199,7 +197,7 @@ Use these values for testing:
 
 ```
 local_prototype/
-├── insurance_api/            # Core backend service
+├── local_insurance_api/            # Core backend service
 │   ├── data/                 # Sample data files
 │   ├── routes/               # API endpoints
 │   ├── services/             # Business logic
@@ -209,7 +207,7 @@ local_prototype/
 │   ├── tools/                # MCP tool definitions
 │   ├── config.py             # Server configuration
 │   └── server.py             # Entry point
-└── strands_insurance_agent/  # Interactive agent
+└── local_strands_insurance_agent/  # Interactive agent
     └── interactive_insurance_agent.py  # Agent implementation
 ```
 

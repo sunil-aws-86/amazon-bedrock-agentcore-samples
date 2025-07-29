@@ -44,6 +44,7 @@ The first step is to deploy the insurance API as a serverless application using 
 
 ```bash
 cd cloud_insurance_api/deployment
+chmod +x ./deploy.sh
 ./deploy.sh
 ```
 
@@ -168,6 +169,55 @@ agentcore invoke --bearer-token $BEARER_TOKEN '{"user_input": "Can you help me g
 - **Authentication errors**: Check that MCP_ACCESS_TOKEN in your .env file is valid and not expired
 - **IAM role errors**: Make sure the IAM role has all required permissions specified in `iam_roles_setup/README.md`
 - **Cognito authentication issues**: Check the documentation in `cognito_auth/README.md` for troubleshooting
+
+## Clean Up
+
+When you're done using the agentcore app, follow these steps to clean up resources:
+
+1. **Delete Gateway and Targets**:
+   ```bash
+   # Get gateway ID
+   aws bedrock-agentcore-control list-gateways
+   
+   # List targets for your gateway
+   aws bedrock-agentcore-control list-gateway-targets --gateway-identifier your-gateway-id
+   
+   # Delete targets first (if not deleting the entire gateway)
+   aws bedrock-agentcore-control delete-gateway-target --gateway-identifier your-gateway-id --target-id your-target-id
+   
+   # Delete gateway (this will also delete all associated targets)
+   aws bedrock-agentcore-control delete-gateway --gateway-identifier your-gateway-id
+   ```
+
+2. **Delete AgentCore Runtime Resources**:
+   ```bash
+   # List agent runtimes
+   aws bedrock-agentcore-control list-agent-runtimes
+   
+   # List agent runtime endpoints
+   aws bedrock-agentcore-control list-agent-runtime-endpoints --agent-runtime-identifier your-agent-runtime-id
+   
+   # Delete agent runtime endpoints
+   aws bedrock-agentcore-control delete-agent-runtime-endpoint --agent-runtime-identifier your-agent-runtime-id --agent-runtime-endpoint-identifier your-endpoint-id
+   
+   # Delete agent runtime
+   aws bedrock-agentcore-control delete-agent-runtime --agent-runtime-identifier your-agent-runtime-id
+   ```
+
+3. **Delete OAuth2 Credential Providers**:
+   ```bash
+   # List OAuth2 credential providers
+   aws bedrock-agentcore-control list-oauth2-credential-providers
+   
+   # Delete OAuth2 credential provider
+   aws bedrock-agentcore-control delete-oauth2-credential-provider --credential-provider-identifier your-provider-id
+   ```
+
+4. **Cognito Resources**:
+   ```bash
+   aws cognito-idp delete-user-pool-client --user-pool-id your-user-pool-id --client-id your-app-client-id
+   aws cognito-idp delete-user-pool --user-pool-id your-user-pool-id
+   ```
 
 ## Next Steps
 

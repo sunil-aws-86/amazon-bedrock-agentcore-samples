@@ -17,14 +17,21 @@ then
     exit 1
 fi
 
+# Get AWS account ID and region
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+REGION=$(aws configure get region)
+
 # Set variables
 STAGE=${1:-dev}  # Default to dev if not specified
 STACK_NAME="insurance-api-$STAGE"
-S3_BUCKET="insurance-api-deployment-$STAGE"
+S3_BUCKET="insurance-api-$STAGE-$ACCOUNT_ID-$REGION"
 
 echo "=== Insurance API Deployment ==="
 echo "Stage: $STAGE"
+echo "Account ID: $ACCOUNT_ID"
+echo "Region: $REGION"
 echo "Stack name: $STACK_NAME"
+echo "S3 Bucket: $S3_BUCKET"
 
 # Create S3 bucket if it doesn't exist
 if ! aws s3api head-bucket --bucket $S3_BUCKET 2>/dev/null; then

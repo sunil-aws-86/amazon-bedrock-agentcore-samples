@@ -124,9 +124,7 @@ Follow these steps to start the local prototype:
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    pip install -r requirements.txt
    # Configure AWS credentials for Bedrock access
-   export AWS_ACCESS_KEY_ID=your_access_key
-   export AWS_SECRET_ACCESS_KEY=your_secret_key
-   export AWS_DEFAULT_REGION=us-west-2
+   # Configure credentials using (https://strandsagents.com/latest/documentation/docs/user-guide/quickstart/#configuring-credentials)
    # Start the interactive agent
    python interactive_insurance_agent.py
    ```
@@ -354,6 +352,54 @@ The production implementation includes:
 - Custom metrics for agent performance
 - Error reporting and alerting
 
+## Clean Up
+
+When you're done using the agentcore app, follow these steps to clean up resources:
+
+1. **Delete Gateway and Targets**:
+   ```bash
+   # Get gateway ID
+   aws bedrock-agentcore-control list-gateways
+   
+   # List targets for your gateway
+   aws bedrock-agentcore-control list-gateway-targets --gateway-identifier your-gateway-id
+   
+   # Delete targets first (if not deleting the entire gateway)
+   aws bedrock-agentcore-control delete-gateway-target --gateway-identifier your-gateway-id --target-id your-target-id
+   
+   # Delete gateway (this will also delete all associated targets)
+   aws bedrock-agentcore-control delete-gateway --gateway-identifier your-gateway-id
+   ```
+
+2. **Delete AgentCore Runtime Resources**:
+   ```bash
+   # List agent runtimes
+   aws bedrock-agentcore-control list-agent-runtimes
+   
+   # List agent runtime endpoints
+   aws bedrock-agentcore-control list-agent-runtime-endpoints --agent-runtime-identifier your-agent-runtime-id
+   
+   # Delete agent runtime endpoints
+   aws bedrock-agentcore-control delete-agent-runtime-endpoint --agent-runtime-identifier your-agent-runtime-id --agent-runtime-endpoint-identifier your-endpoint-id
+   
+   # Delete agent runtime
+   aws bedrock-agentcore-control delete-agent-runtime --agent-runtime-identifier your-agent-runtime-id
+   ```
+
+3. **Delete OAuth2 Credential Providers**:
+   ```bash
+   # List OAuth2 credential providers
+   aws bedrock-agentcore-control list-oauth2-credential-providers
+   
+   # Delete OAuth2 credential provider
+   aws bedrock-agentcore-control delete-oauth2-credential-provider --credential-provider-identifier your-provider-id
+   ```
+
+4. **Cognito Resources**:
+   ```bash
+   aws cognito-idp delete-user-pool-client --user-pool-id your-user-pool-id --client-id your-app-client-id
+   aws cognito-idp delete-user-pool --user-pool-id your-user-pool-id
+   ```
 
 ## 📝 License
 

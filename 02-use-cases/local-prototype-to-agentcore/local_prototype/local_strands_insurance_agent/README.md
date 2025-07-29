@@ -57,23 +57,8 @@ This agent uses AWS Bedrock to access Claude 3.7 Sonnet. Make sure your AWS cred
    pip install awscli
    ```
 
-2. Configure your AWS credentials:
-   ```bash
-   aws configure
-   ```
-   
-   Enter your:
-   - AWS Access Key ID
-   - AWS Secret Access Key
-   - Default region name (recommended: `us-west-2` for Bedrock)
-   - Default output format (e.g., `json`)
+2. Configure credentials using [link](https://strandsagents.com/latest/documentation/docs/user-guide/quickstart/#configuring-credentials)
 
-3. Alternatively, set environment variables:
-   ```bash
-   export AWS_ACCESS_KEY_ID=your_access_key
-   export AWS_SECRET_ACCESS_KEY=your_secret_key
-   export AWS_DEFAULT_REGION=us-west-2
-   ```
 
 ### 5. Start the Required Services
 

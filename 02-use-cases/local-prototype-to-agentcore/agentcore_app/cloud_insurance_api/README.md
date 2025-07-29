@@ -202,3 +202,48 @@ The API provides several endpoints for insurance-related operations:
 - [Mangum Documentation](https://mangum.io/)
 - [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/)
 - [AWS SAM Documentation](https://docs.aws.amazon.com/serverless-application-model/)
+
+## Cleanup
+
+When you're done with the Insurance API application, follow these steps to clean up all the AWS resources:
+
+1. **Delete the CloudFormation Stack**:
+   ```bash
+   # Get the stack name (if you don't remember it)
+   aws cloudformation list-stacks --query "StackSummaries[?contains(StackName,'insurance-api')].StackName" --output text
+   
+   # Delete the stack
+   aws cloudformation delete-stack --stack-name insurance-api-stack-dev
+   ```
+
+2. **Delete the S3 Deployment Bucket** (if it's no longer needed):
+   ```bash
+   # List S3 buckets to find the deployment bucket
+   aws s3 ls | grep insurance-api
+   
+   # Remove all files from the bucket first
+   aws s3 rm s3://insurance-api-deployment-bucket-1234 --recursive
+   
+   # Delete the empty bucket
+   aws s3api delete-bucket --bucket insurance-api-deployment-bucket-1234
+   ```
+
+3. **Verify Resource Deletion**:
+   ```bash
+   # Check if Lambda function still exists
+   aws lambda list-functions --query "Functions[?contains(FunctionName,'insurance-api')].FunctionName" --output text
+   
+   # Check if API Gateway still exists
+   aws apigateway get-rest-apis --query "items[?contains(name,'insurance-api')].id" --output text
+   ```
+
+4. **Clean up CloudWatch Logs** (optional):
+   ```bash
+   # Find the log group
+   aws logs describe-log-groups --query "logGroups[?contains(logGroupName,'/aws/lambda/insurance-api')].logGroupName" --output text
+   
+   # Delete the log group
+   aws logs delete-log-group --log-group-name /aws/lambda/insurance-api-function-dev
+   ```
+
+Note: Replace placeholder values like `insurance-api-stack-dev`, `insurance-api-deployment-bucket-1234`, and `/aws/lambda/insurance-api-function-dev` with your actual resource names.
