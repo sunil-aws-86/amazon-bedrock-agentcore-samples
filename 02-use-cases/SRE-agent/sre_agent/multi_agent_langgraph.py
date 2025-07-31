@@ -842,7 +842,7 @@ async def main():
 
     try:
         logger.info(f"🚀 Starting SRE Agent with provider: {args.provider}")
-        
+
         # Interactive mode
         if args.interactive or not args.prompt:
             await _run_interactive_session(
@@ -857,14 +857,24 @@ async def main():
                 graph, all_tools = await create_multi_agent_system(args.provider)
                 logger.info("Multi-agent system created successfully")
             except Exception as e:
-                from .llm_utils import LLMAuthenticationError, LLMAccessError, LLMProviderError
-                
-                if isinstance(e, (LLMAuthenticationError, LLMAccessError, LLMProviderError)):
+                from .llm_utils import (
+                    LLMAuthenticationError,
+                    LLMAccessError,
+                    LLMProviderError,
+                )
+
+                if isinstance(
+                    e, (LLMAuthenticationError, LLMAccessError, LLMProviderError)
+                ):
                     print(f"\n❌ {type(e).__name__}:")
                     print(str(e))
                     print(f"\n💡 Quick fix: Try running with the other provider:")
-                    other_provider = "anthropic" if args.provider == "bedrock" else "bedrock"
-                    print(f"   sre-agent --provider {other_provider} --prompt \"your query\"")
+                    other_provider = (
+                        "anthropic" if args.provider == "bedrock" else "bedrock"
+                    )
+                    print(
+                        f'   sre-agent --provider {other_provider} --prompt "your query"'
+                    )
                     return
                 else:
                     raise

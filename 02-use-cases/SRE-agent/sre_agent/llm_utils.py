@@ -19,29 +19,32 @@ logger = logging.getLogger(__name__)
 
 class LLMProviderError(Exception):
     """Exception raised when LLM provider creation fails."""
+
     pass
 
 
 class LLMAuthenticationError(LLMProviderError):
     """Exception raised when LLM authentication fails."""
+
     pass
 
 
 class LLMAccessError(LLMProviderError):
     """Exception raised when LLM access is denied."""
+
     pass
 
 
 def create_llm_with_error_handling(provider: str = "bedrock", **kwargs):
     """Create LLM instance with proper error handling and helpful error messages.
-    
+
     Args:
         provider: LLM provider ("anthropic" or "bedrock")
         **kwargs: Additional configuration overrides
-        
+
     Returns:
         LLM instance
-        
+
     Raises:
         LLMProviderError: For general provider errors
         LLMAuthenticationError: For authentication failures
@@ -49,24 +52,28 @@ def create_llm_with_error_handling(provider: str = "bedrock", **kwargs):
         ValueError: For unsupported providers
     """
     if provider not in ["anthropic", "bedrock"]:
-        raise ValueError(f"Unsupported provider: {provider}. Use 'anthropic' or 'bedrock'")
-    
+        raise ValueError(
+            f"Unsupported provider: {provider}. Use 'anthropic' or 'bedrock'"
+        )
+
     logger.info(f"Creating LLM with provider: {provider}")
-    
+
     try:
         config = SREConstants.get_model_config(provider, **kwargs)
-        
+
         if provider == "anthropic":
             logger.info(f"Creating Anthropic LLM - Model: {config['model_id']}")
             return _create_anthropic_llm(config)
         else:  # bedrock
-            logger.info(f"Creating Bedrock LLM - Model: {config['model_id']}, Region: {config['region_name']}")
+            logger.info(
+                f"Creating Bedrock LLM - Model: {config['model_id']}, Region: {config['region_name']}"
+            )
             return _create_bedrock_llm(config)
-            
+
     except Exception as e:
         error_msg = _get_helpful_error_message(provider, e)
         logger.error(f"Failed to create LLM: {error_msg}")
-        
+
         # Classify the error type for better handling
         if _is_auth_error(e):
             raise LLMAuthenticationError(error_msg) from e
@@ -101,9 +108,15 @@ def _is_auth_error(error: Exception) -> bool:
     """Check if error is authentication-related."""
     error_str = str(error).lower()
     auth_keywords = [
-        "authentication", "unauthorized", "invalid credentials", 
-        "api key", "access key", "token", "permission denied",
-        "403", "401"
+        "authentication",
+        "unauthorized",
+        "invalid credentials",
+        "api key",
+        "access key",
+        "token",
+        "permission denied",
+        "403",
+        "401",
     ]
     return any(keyword in error_str for keyword in auth_keywords)
 
@@ -112,8 +125,14 @@ def _is_access_error(error: Exception) -> bool:
     """Check if error is access/permission-related."""
     error_str = str(error).lower()
     access_keywords = [
-        "access denied", "forbidden", "not authorized", "insufficient permissions",
-        "quota exceeded", "rate limit", "service unavailable", "region not supported"
+        "access denied",
+        "forbidden",
+        "not authorized",
+        "insufficient permissions",
+        "quota exceeded",
+        "rate limit",
+        "service unavailable",
+        "region not supported",
     ]
     return any(keyword in error_str for keyword in access_keywords)
 
@@ -121,7 +140,7 @@ def _is_access_error(error: Exception) -> bool:
 def _get_helpful_error_message(provider: str, error: Exception) -> str:
     """Generate helpful error message based on provider and error type."""
     base_error = str(error)
-    
+
     if provider == "anthropic":
         if _is_auth_error(error):
             return (
@@ -150,7 +169,7 @@ def _get_helpful_error_message(provider: str, error: Exception) -> str:
                 "  3. Try again in a few minutes\n"
                 "  4. Or switch to Bedrock: sre-agent --provider bedrock"
             )
-    
+
     else:  # bedrock
         if _is_auth_error(error):
             return (
@@ -186,11 +205,11 @@ def _get_helpful_error_message(provider: str, error: Exception) -> str:
 
 def validate_provider_access(provider: str = "bedrock", **kwargs) -> bool:
     """Validate if the specified provider is accessible.
-    
+
     Args:
         provider: LLM provider to validate
         **kwargs: Additional configuration
-        
+
     Returns:
         True if provider is accessible, False otherwise
     """
@@ -207,7 +226,7 @@ def validate_provider_access(provider: str = "bedrock", **kwargs) -> bool:
 
 def get_recommended_provider() -> str:
     """Get recommended provider based on availability.
-    
+
     Returns:
         Recommended provider name
     """
@@ -216,6 +235,6 @@ def get_recommended_provider() -> str:
         if validate_provider_access(provider):
             logger.info(f"Recommended provider: {provider}")
             return provider
-    
+
     logger.warning("No providers are immediately accessible - defaulting to bedrock")
-    return "bedrock" 
+    return "bedrock"

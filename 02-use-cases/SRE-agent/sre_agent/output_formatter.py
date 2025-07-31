@@ -31,14 +31,16 @@ class SREOutputFormatter:
     def _create_llm(self, **kwargs):
         """Create LLM instance with improved error handling."""
         # Get output formatter specific config (with reduced max_tokens)
-        formatter_config = SREConstants.get_output_formatter_config(self.llm_provider, **kwargs)
-        logger.info(f"Creating LLM for output formatter - Provider: {self.llm_provider}, Max tokens: {formatter_config['max_tokens']}")
-        
+        formatter_config = SREConstants.get_output_formatter_config(
+            self.llm_provider, **kwargs
+        )
+        logger.info(
+            f"Creating LLM for output formatter - Provider: {self.llm_provider}, Max tokens: {formatter_config['max_tokens']}"
+        )
+
         # Use the centralized error handling with formatter-specific config
         return create_llm_with_error_handling(
-            self.llm_provider, 
-            max_tokens=formatter_config["max_tokens"],
-            **kwargs
+            self.llm_provider, max_tokens=formatter_config["max_tokens"], **kwargs
         )
 
     def _extract_steps_from_response(self, response: str) -> List[str]:
