@@ -18,17 +18,27 @@ fi
 get_config() {
     local key=$1
     local line=$(grep "^${key}:" "${SCRIPT_DIR}/config.yaml" | cut -d':' -f2-)
+    local result
     
     # Remove leading whitespace
     line=$(echo "$line" | sed 's/^[ \t]*//')
     
     # Handle quoted values - extract content between first pair of quotes, ignore comments after
     if echo "$line" | grep -q '^".*"'; then
-        echo "$line" | sed 's/^"\([^"]*\)".*/\1/'
+        result=$(echo "$line" | sed 's/^"\([^"]*\)".*/\1/')
     else
         # Handle unquoted values - extract everything before comment or end of line, trim trailing whitespace
-        echo "$line" | sed 's/[ \t]*#.*//' | sed 's/[ \t]*$//'
+        result=$(echo "$line" | sed 's/[ \t]*#.*//' | sed 's/[ \t]*$//')
     fi
+    
+    # For critical AWS identifiers, remove all whitespace to prevent copy-paste errors
+    case "$key" in
+        account_id|role_name|user_pool_id|client_id|s3_bucket|credential_provider_name)
+            result=$(echo "$result" | tr -d ' \t')
+            ;;
+    esac
+    
+    echo "$result"
 }
 
 # Read configuration from config.yaml
