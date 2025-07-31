@@ -20,7 +20,7 @@ class MemoryConfig(BaseModel):
         description="Enable memory system"
     )
     memory_name: str = Field(
-        default="sre-agent-memory",
+        default="sre_agent_memory",
         description="Base name for memory instances"
     )
     region: str = Field(

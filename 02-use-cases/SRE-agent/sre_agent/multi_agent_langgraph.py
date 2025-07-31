@@ -5,12 +5,13 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
 import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import yaml
 from dotenv import load_dotenv
@@ -34,6 +35,43 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file in sre_agent directory
 load_dotenv(Path(__file__).parent / ".env")
+
+
+def _get_user_from_env() -> str:
+    """Get user_id from environment variable.
+    
+    Returns:
+        user_id from USER_ID environment variable or default
+    """
+    user_id = os.getenv("USER_ID")
+    if user_id:
+        logger.info(f"Using user_id from environment: {user_id}")
+        return user_id
+    else:
+        # Fallback to default user_id
+        default_user_id = SREConstants.agents.default_user_id
+        logger.warning(f"USER_ID not set in environment, using default: {default_user_id}")
+        return default_user_id
+
+
+def _get_session_from_env(mode: str) -> str:
+    """Get session_id from environment variable or generate one.
+    
+    Args:
+        mode: "interactive" or "prompt" for auto-generation prefix
+    
+    Returns:
+        session_id from SESSION_ID environment variable or auto-generated
+    """
+    session_id = os.getenv("SESSION_ID")
+    if session_id:
+        logger.info(f"Using session_id from environment: {session_id}")
+        return session_id
+    else:
+        # Auto-generate session_id
+        auto_session_id = f"{mode}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        logger.info(f"SESSION_ID not set in environment, auto-generated: {auto_session_id}")
+        return auto_session_id
 
 
 class Spinner:
@@ -229,7 +267,7 @@ def create_mcp_client() -> MultiServerMCPClient:
 
 
 async def create_multi_agent_system(
-    provider: str = "bedrock", checkpointer=None, **llm_kwargs
+    provider: str = "bedrock", checkpointer=None, force_delete_memory: bool = False, **llm_kwargs
 ):
     """Create multi-agent system with MCP tools."""
     logger.info(f"Creating multi-agent system with provider: {provider}")
@@ -271,7 +309,77 @@ async def create_multi_agent_system(
 
     # Combine local tools with MCP tools
     local_tools = [get_current_time]
-    all_tools = local_tools + mcp_tools
+    
+    # Add memory tools if memory system is enabled
+    memory_tools = []
+    try:
+        from .memory.config import _load_memory_config
+        from .memory.tools import create_memory_tools
+        from .memory.client import SREMemoryClient
+        
+        memory_config = _load_memory_config()
+        if memory_config.enabled:
+            logger.debug("Adding memory tools to agent tool list")
+            memory_client = SREMemoryClient(
+                memory_name=memory_config.memory_name,
+                region=memory_config.region,
+                force_delete=force_delete_memory
+            )
+            memory_tools = create_memory_tools(memory_client)
+            logger.info(f"Added {len(memory_tools)} memory tools to agent tool list")
+        else:
+            logger.info("Memory system disabled - no memory tools added")
+    except Exception as e:
+        logger.warning(f"Failed to add memory tools: {e}")
+        memory_tools = []
+    
+    all_tools = local_tools + mcp_tools + memory_tools
+
+    # Debug: Show all tools being passed to agents
+    logger.info(f"Total tools being passed to agents: {len(all_tools)}")
+    logger.info(f"  - Local tools: {len(local_tools)}")
+    logger.info(f"  - MCP tools: {len(mcp_tools)}")
+    logger.info(f"  - Memory tools: {len(memory_tools)}")
+    
+    # Log detailed memory tool information
+    if memory_tools:
+        logger.info("Memory tools details:")
+        for tool in memory_tools:
+            logger.info(f"    Tool: {getattr(tool, 'name', 'unknown')}")
+            logger.info(f"      Description: {getattr(tool, 'description', 'No description')}")
+            # Log args schema details
+            args_schema = getattr(tool, 'args_schema', None)
+            if args_schema:
+                logger.info(f"      Args schema: {args_schema.__name__}")
+                # Handle both Pydantic v1 and v2
+                if hasattr(args_schema, 'model_fields'):
+                    # Pydantic v2
+                    for field_name, field_info in args_schema.model_fields.items():
+                        field_type = str(field_info.annotation)
+                        field_desc = field_info.description if field_info.description else 'No description'
+                        field_default = str(field_info.default) if field_info.default is not None else 'No default'
+                        logger.info(f"        - {field_name}: {field_type} (description: {field_desc}, default: {field_default})")
+                elif hasattr(args_schema, '__fields__'):
+                    # Pydantic v1
+                    for field_name, field_info in args_schema.__fields__.items():
+                        field_type = str(field_info.type_)
+                        field_desc = field_info.field_info.description if hasattr(field_info.field_info, 'description') else 'No description'
+                        field_default = str(field_info.default) if field_info.default is not None else 'No default'
+                        logger.info(f"        - {field_name}: {field_type} (description: {field_desc}, default: {field_default})")
+            else:
+                logger.info(f"      Args schema: No schema")
+            # Log additional attributes if present
+            if hasattr(tool, 'memory_client'):
+                logger.info(f"      Has memory_client: Yes")
+            logger.info(f"      Tool class: {tool.__class__.__name__}")
+    
+    logger.info("All tool names:")
+    for tool in all_tools:
+        tool_name = getattr(tool, "name", "unknown")
+        tool_description = getattr(tool, "description", "No description")
+        # Extract just the first line of description for cleaner logging
+        description_first_line = tool_description.split("\n")[0].strip() if tool_description else "No description"
+        logger.info(f"  - {tool_name}: {description_first_line}")
 
     logger.info(f"Additional local tools: {len(local_tools)}")
     if should_show_debug_traces():
@@ -288,7 +396,7 @@ async def create_multi_agent_system(
 
     # Build the multi-agent graph
     graph = build_multi_agent_graph(
-        tools=all_tools, llm_provider=provider, **llm_kwargs
+        tools=all_tools, llm_provider=provider, force_delete_memory=force_delete_memory, **llm_kwargs
     )
 
     return graph, all_tools
@@ -362,6 +470,7 @@ async def _run_interactive_session(
     save_state: bool = True,
     output_dir: str = "./reports",
     save_markdown: bool = True,
+    force_delete_memory: bool = False,
 ):
     """Run an interactive multi-turn conversation session."""
     # Buffer to store last query and response for /savereport command
@@ -369,6 +478,8 @@ async def _run_interactive_session(
     last_response = None
     # Track the original query for report naming (resets after each /savereport)
     original_query = None
+    # Session ID management - generates new session after /savereport or at start
+    current_session_id = f"interactive-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     print("\n🤖 Starting interactive multi-agent SRE assistant...")
     logger.info("🤖 Starting interactive multi-agent SRE assistant...")
     print("Commands:")
@@ -392,7 +503,7 @@ async def _run_interactive_session(
         saved_messages, saved_state = _load_conversation_state()
 
     # Create multi-agent system
-    graph, all_tools = await create_multi_agent_system(provider)
+    graph, all_tools = await create_multi_agent_system(provider, force_delete_memory=force_delete_memory)
 
     # Initialize conversation state
     messages = []
@@ -462,6 +573,10 @@ async def _run_interactive_session(
                         last_query = None
                         last_response = None
                         original_query = None
+                        # Generate new session ID for next conversation
+                        current_session_id = f"interactive-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                        logger.info(f"Generated new session ID for next conversation: {current_session_id}")
+                        print("✨ New conversation session started.")
                     else:
                         print("❌ Failed to save report")
                 else:
@@ -530,28 +645,34 @@ async def _run_interactive_session(
             if not user_input:
                 continue
 
+            # Get user_id from environment and use input as-is
+            user_id = _get_user_from_env()
+            cleaned_query = user_input
+            
             # Track original query for report naming (only set if not already set)
             if original_query is None:
-                original_query = user_input
+                original_query = cleaned_query  # Use cleaned query for reports
 
             # Process with multi-agent system
             print("\n🤖 Multi-Agent System: Processing...\n")
             logger.info("🤖 Multi-Agent System: Processing...")
 
-            # Add user message
-            messages.append(HumanMessage(content=user_input))
+            # Add user message with cleaned query
+            messages.append(HumanMessage(content=cleaned_query))
 
             # Create initial state
             initial_state: AgentState = {
                 "messages": messages,
                 "next": "supervisor",
                 "agent_results": {},
-                "current_query": user_input,
+                "current_query": cleaned_query,
                 "metadata": {},
                 "requires_collaboration": False,
                 "agents_invoked": [],
                 "final_response": None,
                 "auto_approve_plan": False,  # Default to False for interactive mode
+                "user_id": user_id,  # Add extracted user_id
+                "session_id": current_session_id,  # Add session ID for conversation tracking
             }
 
             # Stream the graph execution
@@ -827,6 +948,11 @@ async def main():
         action="store_true",
         help="Disable saving final responses to markdown files",
     )
+    parser.add_argument(
+        "--force-delete-memory",
+        action="store_true",
+        help="Force delete and recreate the memory system (WARNING: This will delete all saved memories)",
+    )
 
     args = parser.parse_args()
 
@@ -848,22 +974,34 @@ async def main():
                 save_state=not args.no_save,
                 output_dir=args.output_dir,
                 save_markdown=not args.no_markdown,
+                force_delete_memory=args.force_delete_memory,
             )
         # Single prompt mode
         else:
-            graph, all_tools = await create_multi_agent_system(args.provider)
+            graph, all_tools = await create_multi_agent_system(args.provider, force_delete_memory=args.force_delete_memory)
             logger.info("Multi-agent system created successfully")
+
+            # Get user_id from environment and use prompt as-is
+            user_id = _get_user_from_env()
+            cleaned_query = args.prompt
+
+            # Generate session ID for this prompt-mode conversation
+            prompt_session_id = f"prompt-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            logger.info(f"Generated session ID for prompt mode: {prompt_session_id}, user_id: {user_id}")
 
             # Create initial state
             initial_state: AgentState = {
-                "messages": [HumanMessage(content=args.prompt)],
+                "messages": [HumanMessage(content=cleaned_query)],
                 "next": "supervisor",
                 "agent_results": {},
-                "current_query": args.prompt,
+                "current_query": cleaned_query,
                 "metadata": {},
                 "requires_collaboration": False,
                 "agents_invoked": [],
                 "final_response": None,
+                "auto_approve_plan": True,  # Auto-approve plans in prompt mode
+                "user_id": user_id,  # Add extracted user_id
+                "session_id": prompt_session_id,  # Add session ID for conversation tracking
             }
 
             print("🤖 Multi-Agent System:\n")

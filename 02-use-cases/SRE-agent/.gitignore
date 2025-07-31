@@ -75,6 +75,7 @@ Thumbs.db
 .conversation_state.json
 .langgraph_conversation_state.json
 .multi_agent_conversation_state.json
+.memory_id
 *.log
 logs/
 reports/*.md
@@ -92,7 +93,7 @@ config.yaml
 *.temp
 
 # Scratchpad and notes
-.scratchpad.md
+.scratchpad/
 docs/agentic-ai-architecture-assessment.md
 
 # Deployment artifacts

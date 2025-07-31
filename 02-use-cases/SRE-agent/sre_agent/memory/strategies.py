@@ -1,4 +1,5 @@
 import logging
+import json
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -53,6 +54,10 @@ class InfrastructureKnowledge(BaseModel):
         le=1.0,
         description="Confidence level in this knowledge (0.0-1.0)"
     )
+    context: Optional[str] = Field(
+        default=None,
+        description="Context where this knowledge was discovered"
+    )
     timestamp: datetime = Field(
         default_factory=datetime.utcnow,
         description="When this knowledge was captured"
@@ -83,112 +88,193 @@ class InvestigationSummary(BaseModel):
         default_factory=list,
         description="Key findings from the investigation"
     )
+    context: Optional[str] = Field(
+        default=None,
+        description="Context describing the investigation circumstances"
+    )
     timestamp: datetime = Field(
         default_factory=datetime.utcnow,
         description="When this summary was created"
     )
 
 
-async def _save_user_preference(
+def _save_user_preference(
     client,
     user_id: str,
     preference: UserPreference
 ) -> bool:
     """Save user preference to memory."""
     try:
-        return await client.save_event(
+        logger.info(f"Saving user preference: type={preference.preference_type}, user_id={user_id}")
+        success = client.save_event(
             memory_type="preferences",
             actor_id=user_id,
             event_data=preference.model_dump()
         )
+        if success:
+            logger.info(f"Saved {preference.preference_type} preference for user {user_id}")
+        else:
+            logger.warning(f"Failed to save {preference.preference_type} preference for user {user_id}")
+        return success
     except Exception as e:
-        logger.error(f"Failed to save user preference: {e}")
+        logger.error(f"Failed to save user preference: {e}", exc_info=True)
         return False
 
 
-async def _retrieve_user_preferences(
+def _retrieve_user_preferences(
     client,
     user_id: str,
     query: str
 ) -> List[UserPreference]:
     """Retrieve relevant user preferences."""
     try:
-        memories = await client.retrieve_memories(
+        logger.info(f"Retrieving user preferences: user_id={user_id}, query='{query}'")
+        memories = client.retrieve_memories(
             memory_type="preferences",
             actor_id=user_id,
             query=query
         )
-        return [UserPreference(**mem) for mem in memories]
+        logger.info(f"Retrieved {len(memories)} preference memories from storage")
+        
+        # Note: Need to parse the memory content structure
+        preferences = []
+        for i, mem in enumerate(memories):
+            try:
+                # Extract content from memory structure
+                content = mem.get("content", {})
+                logger.info(f"Processing preference memory {i}: content type={type(content)}")
+                
+                if isinstance(content, dict):
+                    preferences.append(UserPreference(**content))
+                elif isinstance(content, str):
+                    # Try to parse as JSON
+                    import json
+                    data = json.loads(content)
+                    preferences.append(UserPreference(**data))
+                
+                logger.info(f"Successfully parsed preference memory {i}")
+            except Exception as e:
+                logger.warning(f"Failed to parse preference memory {i}: {e}")
+                continue
+        
+        logger.info(f"Retrieved {len(preferences)} parsed user preferences for {user_id}")
+        return preferences
     except Exception as e:
-        logger.error(f"Failed to retrieve user preferences: {e}")
+        logger.error(f"Failed to retrieve user preferences: {e}", exc_info=True)
         return []
 
 
-async def _save_infrastructure_knowledge(
+def _save_infrastructure_knowledge(
     client,
-    service_name: str,
-    knowledge: InfrastructureKnowledge
+    actor_id: str,
+    knowledge: InfrastructureKnowledge,
+    session_id: str
 ) -> bool:
     """Save infrastructure knowledge to memory."""
     try:
-        return await client.save_event(
+        logger.info(f"Saving infrastructure knowledge: type={knowledge.knowledge_type}, service={knowledge.service_name}, confidence={knowledge.confidence}, actor_id={actor_id}")
+        success = client.save_event(
             memory_type="infrastructure",
-            actor_id=service_name,
-            event_data=knowledge.model_dump()
+            actor_id=actor_id,
+            event_data=knowledge.model_dump(),
+            session_id=session_id
         )
+        if success:
+            logger.info(f"Saved {knowledge.knowledge_type} knowledge for service {knowledge.service_name} by actor {actor_id}")
+        else:
+            logger.warning(f"Failed to save {knowledge.knowledge_type} knowledge for service {knowledge.service_name} by actor {actor_id}")
+        return success
     except Exception as e:
-        logger.error(f"Failed to save infrastructure knowledge: {e}")
+        logger.error(f"Failed to save infrastructure knowledge: {e}", exc_info=True)
         return False
 
 
-async def _retrieve_infrastructure_knowledge(
+def _retrieve_infrastructure_knowledge(
     client,
-    query: str,
-    service_name: Optional[str] = None
+    actor_id: str,
+    query: str
 ) -> List[InfrastructureKnowledge]:
     """Retrieve relevant infrastructure knowledge."""
     try:
-        memories = await client.retrieve_memories(
+        memories = client.retrieve_memories(
             memory_type="infrastructure",
-            actor_id=service_name or "default",
+            actor_id=actor_id,
             query=query
         )
-        return [InfrastructureKnowledge(**mem) for mem in memories]
+        # Parse memory content structure
+        knowledge_items = []
+        for mem in memories:
+            try:
+                content = mem.get("content", {})
+                if isinstance(content, dict):
+                    knowledge_items.append(InfrastructureKnowledge(**content))
+                elif isinstance(content, str):
+                    import json
+                    data = json.loads(content)
+                    knowledge_items.append(InfrastructureKnowledge(**data))
+            except Exception as e:
+                logger.warning(f"Failed to parse infrastructure memory: {e}")
+                continue
+        return knowledge_items
     except Exception as e:
         logger.error(f"Failed to retrieve infrastructure knowledge: {e}")
         return []
 
 
-async def _save_investigation_summary(
+def _save_investigation_summary(
     client,
+    actor_id: str,
     incident_id: str,
-    summary: InvestigationSummary
+    summary: InvestigationSummary,
+    session_id: str
 ) -> bool:
     """Save investigation summary to memory."""
     try:
-        return await client.save_event(
+        logger.info(f"Saving investigation summary: incident_id={incident_id}, actor_id={actor_id}, session_id={session_id}, status={summary.resolution_status}, actions_count={len(summary.actions_taken)}, findings_count={len(summary.key_findings)}")
+        logger.info(f"Full investigation summary for incident_id={incident_id}:\n{json.dumps(summary.model_dump(), indent=2, default=str)}")
+        success = client.save_event(
             memory_type="investigations",
-            actor_id=incident_id,
-            event_data=summary.model_dump()
+            actor_id=actor_id,
+            event_data=summary.model_dump(),
+            session_id=session_id
         )
+        if success:
+            logger.info(f"Saved investigation summary for incident {incident_id} with status {summary.resolution_status}")
+        else:
+            logger.warning(f"Failed to save investigation summary for incident {incident_id}")
+        return success
     except Exception as e:
-        logger.error(f"Failed to save investigation summary: {e}")
+        logger.error(f"Failed to save investigation summary: {e}", exc_info=True)
         return False
 
 
-async def _retrieve_investigation_summaries(
+def _retrieve_investigation_summaries(
     client,
-    query: str,
-    incident_id: Optional[str] = None
+    actor_id: str,
+    query: str
 ) -> List[InvestigationSummary]:
     """Retrieve relevant investigation summaries."""
     try:
-        memories = await client.retrieve_memories(
+        memories = client.retrieve_memories(
             memory_type="investigations",
-            actor_id=incident_id or "default",
+            actor_id=actor_id,
             query=query
         )
-        return [InvestigationSummary(**mem) for mem in memories]
+        # Parse memory content structure
+        summaries = []
+        for mem in memories:
+            try:
+                content = mem.get("content", {})
+                if isinstance(content, dict):
+                    summaries.append(InvestigationSummary(**content))
+                elif isinstance(content, str):
+                    import json
+                    data = json.loads(content)
+                    summaries.append(InvestigationSummary(**data))
+            except Exception as e:
+                logger.warning(f"Failed to parse investigation memory: {e}")
+                continue
+        return summaries
     except Exception as e:
         logger.error(f"Failed to retrieve investigation summaries: {e}")
         return []

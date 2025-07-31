@@ -4,8 +4,14 @@ import argparse
 import boto3
 import json
 import logging
+import os
 import time
+from datetime import datetime
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from sre_agent directory
+load_dotenv(Path(__file__).parent.parent / "sre_agent" / ".env")
 
 # Configure logging with basicConfig
 logging.basicConfig(
@@ -13,6 +19,45 @@ logging.basicConfig(
     # Define log message format
     format="%(asctime)s,p%(process)s,{%(filename)s:%(lineno)d},%(levelname)s,%(message)s",
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _get_user_from_env() -> str:
+    """Get user_id from environment variable.
+    
+    Returns:
+        user_id from USER_ID environment variable or default
+    """
+    user_id = os.getenv("USER_ID")
+    if user_id:
+        logger.info(f"Using user_id from environment: {user_id}")
+        return user_id
+    else:
+        # Fallback to default user_id
+        default_user_id = "default-sre-user"
+        logger.warning(f"USER_ID not set in environment, using default: {default_user_id}")
+        return default_user_id
+
+
+def _get_session_from_env(mode: str) -> str:
+    """Get session_id from environment variable or generate one.
+    
+    Args:
+        mode: "interactive" or "prompt" for auto-generation prefix
+    
+    Returns:
+        session_id from SESSION_ID environment variable or auto-generated
+    """
+    session_id = os.getenv("SESSION_ID")
+    if session_id:
+        logger.info(f"Using session_id from environment: {session_id}")
+        return session_id
+    else:
+        # Auto-generate session_id
+        auto_session_id = f"{mode}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        logger.info(f"SESSION_ID not set in environment, auto-generated: {auto_session_id}")
+        return auto_session_id
 
 
 def main():
@@ -78,9 +123,21 @@ def main():
     # Create AgentCore client
     agent_core_client = boto3.client('bedrock-agentcore', region_name=args.region)
     
-    # Prepare payload
+    # Get user_id and session_id from environment
+    user_id = _get_user_from_env()
+    env_session_id = _get_session_from_env("invoke")
+    
+    # Use env session_id if not provided via args
+    if not args.session_id:
+        session_id = env_session_id
+    
+    # Prepare payload with user_id and session_id
     payload = json.dumps({
-        "input": {"prompt": args.prompt}
+        "input": {
+            "prompt": args.prompt,
+            "user_id": user_id,
+            "session_id": session_id
+        }
     })
     
     logging.info(f"Invoking agent runtime: {runtime_arn}")

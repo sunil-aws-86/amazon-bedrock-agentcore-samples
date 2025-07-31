@@ -161,6 +161,79 @@ class ApplicationConfig(BaseModel):
     )
 
 
+class AgentMetadata(BaseModel):
+    """Metadata for a single agent."""
+    actor_id: str = Field(description="Unique actor ID for memory operations")
+    display_name: str = Field(description="Human-readable agent name")
+    description: str = Field(description="Agent capabilities description")
+    agent_type: str = Field(description="Agent type for prompt loading")
+
+
+class AgentsConstant(BaseModel):
+    """Agent-specific constants for the SRE system."""
+    
+    default_actor_id: str = Field(
+        default="sre-agent",
+        description="Default actor ID used for saving and retrieving memories"
+    )
+    
+    default_user_id: str = Field(
+        default="default-sre-user",
+        description="Default user ID for memory operations when no user is specified"
+    )
+    
+    session_prefix: str = Field(
+        default="sre-session",
+        description="Prefix used for session IDs"
+    )
+    
+    memory_types: dict[str, str] = Field(
+        default={
+            "preferences": "preferences",
+            "infrastructure": "infrastructure", 
+            "investigations": "investigations"
+        },
+        description="Memory type identifiers"
+    )
+    
+    # Agent metadata for consistent identity management
+    agents: dict[str, AgentMetadata] = Field(
+        default={
+            "kubernetes": AgentMetadata(
+                actor_id="kubernetes-agent",
+                display_name="Kubernetes Infrastructure Agent",
+                description="Manages Kubernetes cluster operations and monitoring",
+                agent_type="kubernetes"
+            ),
+            "logs": AgentMetadata(
+                actor_id="logs-agent",
+                display_name="Application Logs Agent", 
+                description="Handles application log analysis and searching",
+                agent_type="logs"
+            ),
+            "metrics": AgentMetadata(
+                actor_id="metrics-agent",
+                display_name="Performance Metrics Agent",
+                description="Provides application performance and resource metrics",
+                agent_type="metrics"
+            ),
+            "runbooks": AgentMetadata(
+                actor_id="runbooks-agent",
+                display_name="Operational Runbooks Agent",
+                description="Provides operational procedures and troubleshooting guides",
+                agent_type="runbooks"
+            ),
+            "supervisor": AgentMetadata(
+                actor_id="supervisor-agent",
+                display_name="Supervisor Agent",
+                description="Orchestrates investigation planning and coordinates multiple specialized agents",
+                agent_type="supervisor"
+            )
+        },
+        description="Metadata for all agents in the system"
+    )
+
+
 class SREConstants:
     """Central constants configuration for the SRE Agent system.
 
@@ -194,6 +267,7 @@ class SREConstants:
     timeouts: TimeoutConfig = TimeoutConfig()
     prompts: PromptConfig = PromptConfig()
     app: ApplicationConfig = ApplicationConfig()
+    agents: AgentsConstant = AgentsConstant()
 
     @classmethod
     def get_model_config(cls, provider: str, **kwargs) -> dict:
@@ -262,3 +336,4 @@ DEFAULT_AWS_REGION = constants.aws.default_region
 GRAPH_EXECUTION_TIMEOUT_SECONDS = constants.timeouts.graph_execution_timeout_seconds
 AGENT_MODEL_NAME = constants.app.agent_model_name
 DEFAULT_OUTPUT_DIR = constants.app.default_output_dir
+DEFAULT_ACTOR_ID = constants.agents.default_actor_id

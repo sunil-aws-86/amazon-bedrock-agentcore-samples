@@ -2,6 +2,7 @@
 
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal
 
@@ -15,9 +16,47 @@ from .constants import SREConstants
 from .output_formatter import create_formatter
 from .prompt_loader import prompt_loader
 from .memory.client import SREMemoryClient
-from .memory.tools import SaveMemoryTool, RetrieveMemoryTool
 from .memory.hooks import MemoryHookProvider
 from .memory.config import _load_memory_config
+from .memory import create_conversation_memory_manager
+
+
+def _get_user_from_env() -> str:
+    """Get user_id from environment variable.
+    
+    Returns:
+        user_id from USER_ID environment variable or default
+    """
+    user_id = os.getenv("USER_ID")
+    if user_id:
+        logger.info(f"Using user_id from environment: {user_id}")
+        return user_id
+    else:
+        # Fallback to default user_id
+        default_user_id = SREConstants.agents.default_user_id
+        logger.warning(f"USER_ID not set in environment, using default: {default_user_id}")
+        return default_user_id
+
+
+def _get_session_from_env(mode: str) -> str:
+    """Get session_id from environment variable or generate one.
+    
+    Args:
+        mode: "interactive" or "prompt" for auto-generation prefix
+    
+    Returns:
+        session_id from SESSION_ID environment variable or auto-generated
+    """
+    session_id = os.getenv("SESSION_ID")
+    if session_id:
+        logger.info(f"Using session_id from environment: {session_id}")
+        return session_id
+    else:
+        # Auto-generate session_id
+        auto_session_id = f"{mode}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        logger.info(f"SESSION_ID not set in environment, auto-generated: {auto_session_id}")
+        return auto_session_id
+
 
 # Configure logging with basicConfig
 logging.basicConfig(
@@ -37,6 +76,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _json_serializer(obj):
+    """JSON serializer for objects not serializable by default json code."""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
+
 class InvestigationPlan(BaseModel):
     """Investigation plan created by supervisor."""
 
@@ -44,7 +90,7 @@ class InvestigationPlan(BaseModel):
         description="List of 3-5 investigation steps to be executed"
     )
     agents_sequence: List[str] = Field(
-        description="Sequence of agents to invoke (kubernetes, logs, metrics, runbooks)"
+        description="Sequence of agents to invoke (kubernetes_agent, logs_agent, metrics_agent, runbooks_agent)"
     )
     complexity: Literal["simple", "complex"] = Field(
         description="Whether this plan is simple (auto-execute) or complex (needs approval)"
@@ -60,7 +106,7 @@ class InvestigationPlan(BaseModel):
 class RouteDecision(BaseModel):
     """Decision made by supervisor for routing."""
 
-    next: Literal["kubernetes", "logs", "metrics", "runbooks", "FINISH"] = Field(
+    next: Literal["kubernetes_agent", "logs_agent", "metrics_agent", "runbooks_agent", "FINISH"] = Field(
         description="The next agent to route to, or FINISH if done"
     )
     reasoning: str = Field(
@@ -99,21 +145,21 @@ Your responsibilities:
 - Provide clear, actionable responses to users
 
 Routing guidelines:
-- For Kubernetes/infrastructure issues → kubernetes agent
-- For log analysis or error investigation → logs agent  
-- For performance/metrics questions → metrics agent
-- For procedures/troubleshooting guides → runbooks agent
+- For Kubernetes/infrastructure issues → kubernetes_agent
+- For log analysis or error investigation → logs_agent  
+- For performance/metrics questions → metrics_agent
+- For procedures/troubleshooting guides → runbooks_agent
 - For complex issues spanning multiple domains → multiple agents
 
 Always consider if a query requires multiple perspectives. For example:
-- "Why is my service down?" might need kubernetes (pod status) + logs (errors) + metrics (performance)
-- "Debug high latency" might need metrics (performance data) + logs (error patterns)"""
+- "Why is my service down?" might need kubernetes_agent (pod status) + logs_agent (errors) + metrics_agent (performance)
+- "Debug high latency" might need metrics_agent (performance data) + logs_agent (error patterns)"""
 
 
 class SupervisorAgent:
     """Supervisor agent that orchestrates other agents with memory capabilities."""
 
-    def __init__(self, llm_provider: str = "anthropic", **llm_kwargs):
+    def __init__(self, llm_provider: str = "anthropic", force_delete_memory: bool = False, **llm_kwargs):
         self.llm_provider = llm_provider
         self.llm = self._create_llm(**llm_kwargs)
         self.system_prompt = _read_supervisor_prompt()
@@ -124,17 +170,16 @@ class SupervisorAgent:
         if self.memory_config.enabled:
             self.memory_client = SREMemoryClient(
                 memory_name=self.memory_config.memory_name,
-                region=self.memory_config.region
+                region=self.memory_config.region,
+                force_delete=force_delete_memory
             )
-            self.save_memory_tool = SaveMemoryTool(self.memory_client)
-            self.retrieve_memory_tool = RetrieveMemoryTool(self.memory_client)
             self.memory_hooks = MemoryHookProvider(self.memory_client)
+            self.conversation_manager = create_conversation_memory_manager(self.memory_client)
             logger.info("Memory system initialized for supervisor agent")
         else:
             self.memory_client = None
-            self.save_memory_tool = None
-            self.retrieve_memory_tool = None
             self.memory_hooks = None
+            self.conversation_manager = None
             logger.info("Memory system disabled")
 
     def _create_llm(self, **kwargs):
@@ -162,17 +207,27 @@ class SupervisorAgent:
     async def create_investigation_plan(self, state: AgentState) -> InvestigationPlan:
         """Create an investigation plan for the user's query with memory context."""
         current_query = state.get("current_query", "No query provided")
-        user_id = state.get("user_id", "default")
+        user_id = state.get("user_id", SREConstants.agents.default_user_id)
         incident_id = state.get("incident_id")
+        # Use user_id as actor_id for investigation memory retrieval (consistent with storage)
+        actor_id = state.get("user_id", state.get("actor_id", SREConstants.agents.default_actor_id))
+        session_id = state.get("session_id")
         
         # Retrieve memory context if memory system is enabled
         memory_context_text = ""
         if self.memory_client:
             try:
+                logger.debug(f"Retrieving memory context for user_id={user_id}, query='{current_query}'")
+                
                 # Get memory context from hooks
-                memory_context = await self.memory_hooks.on_investigation_start(
+                if not session_id:
+                    raise ValueError("session_id is required for memory retrieval but not found in state")
+                    
+                memory_context = self.memory_hooks.on_investigation_start(
                     query=current_query,
                     user_id=user_id,
+                    actor_id=actor_id,
+                    session_id=session_id,
                     incident_id=incident_id
                 )
                 
@@ -180,19 +235,30 @@ class SupervisorAgent:
                 state["memory_context"] = memory_context
                 
                 # Format memory context for prompt
-                if memory_context.get("user_preferences"):
-                    memory_context_text += f"\nRelevant User Preferences:\n{json.dumps(memory_context['user_preferences'], indent=2)}\n"
+                pref_count = len(memory_context.get("user_preferences", []))
+                infrastructure_by_agent = memory_context.get("infrastructure_by_agent", {})
+                total_knowledge = sum(len(memories) for memories in infrastructure_by_agent.values())
+                investigation_count = len(memory_context.get("past_investigations", []))
                 
-                if memory_context.get("infrastructure_knowledge"):
-                    memory_context_text += f"\nRelevant Infrastructure Knowledge:\n{json.dumps(memory_context['infrastructure_knowledge'], indent=2)}\n"
+                if memory_context.get("user_preferences"):
+                    memory_context_text += f"\nRelevant User Preferences:\n{json.dumps(memory_context['user_preferences'], indent=2, default=_json_serializer)}\n"
+                
+                if infrastructure_by_agent:
+                    memory_context_text += f"\nRelevant Infrastructure Knowledge (organized by agent):\n"
+                    for agent_id, agent_memories in infrastructure_by_agent.items():
+                        memory_context_text += f"\n  From {agent_id} ({len(agent_memories)} items):\n"
+                        memory_context_text += f"{json.dumps(agent_memories, indent=4, default=_json_serializer)}\n"
                 
                 if memory_context.get("past_investigations"):
-                    memory_context_text += f"\nSimilar Past Investigations:\n{json.dumps(memory_context['past_investigations'], indent=2)}\n"
+                    memory_context_text += f"\nSimilar Past Investigations:\n{json.dumps(memory_context['past_investigations'], indent=2, default=_json_serializer)}\n"
                 
-                logger.info(f"Retrieved memory context for planning: {len(memory_context.get('user_preferences', []))} preferences, {len(memory_context.get('infrastructure_knowledge', []))} knowledge items")
+                logger.info(f"Retrieved memory context for planning: {pref_count} preferences, {total_knowledge} knowledge items from {len(infrastructure_by_agent)} agents, {investigation_count} past investigations")
+                
+                if pref_count + total_knowledge + investigation_count == 0:
+                    logger.info("No relevant memories found - this may be the first interaction or a new topic")
                 
             except Exception as e:
-                logger.error(f"Failed to retrieve memory context: {e}")
+                logger.error(f"Failed to retrieve memory context: {e}", exc_info=True)
                 memory_context_text = ""
 
         planning_prompt = f"""{self.system_prompt}
@@ -220,6 +286,37 @@ Return a structured plan."""
         logger.info(
             f"Created investigation plan: {len(plan.steps)} steps, complexity: {plan.complexity}"
         )
+        
+        # Store conversation in memory
+        if self.conversation_manager and user_id and session_id:
+            try:
+                # Get supervisor display name with fallback
+                supervisor_name = getattr(SREConstants.agents, 'supervisor', None)
+                if supervisor_name:
+                    supervisor_display_name = supervisor_name.display_name
+                else:
+                    supervisor_display_name = "Supervisor Agent"
+                    
+                messages_to_store = [
+                    (current_query, "USER"),
+                    (f"[Agent: {supervisor_display_name}]\nInvestigation Plan:\n{self._format_plan_markdown(plan)}", "ASSISTANT")
+                ]
+                
+                success = self.conversation_manager.store_conversation_batch(
+                    messages=messages_to_store,
+                    user_id=user_id,
+                    session_id=session_id,
+                    agent_name=supervisor_display_name
+                )
+                
+                if success:
+                    logger.info("Supervisor: Successfully stored planning conversation")
+                else:
+                    logger.warning("Supervisor: Failed to store planning conversation")
+                    
+            except Exception as e:
+                logger.error(f"Supervisor: Error storing planning conversation: {e}", exc_info=True)
+        
         return plan
 
     def _format_plan_markdown(self, plan: InvestigationPlan) -> str:
@@ -396,13 +493,13 @@ You can:
                     state.get("current_query", "No query provided")
                     or "No query provided"
                 )
-                agent_results_json = json.dumps(agent_results, indent=2)
+                agent_results_json = json.dumps(agent_results, indent=2, default=_json_serializer)
                 auto_approve_plan = state.get("auto_approve_plan", False) or False
 
                 if is_plan_based:
                     current_step = metadata.get("plan_step", 0)
                     total_steps = len(plan.get("steps", []))
-                    plan_json = json.dumps(plan.get("steps", []), indent=2)
+                    plan_json = json.dumps(plan.get("steps", []), indent=2, default=_json_serializer)
 
                     aggregation_prompt = (
                         prompt_loader.get_supervisor_aggregation_prompt(
@@ -430,7 +527,7 @@ You can:
                 # Fallback to simple prompt
                 system_prompt = "You are an expert at presenting technical investigation results clearly and professionally."
                 aggregation_prompt = (
-                    f"Summarize these findings: {json.dumps(agent_results, indent=2)}"
+                    f"Summarize these findings: {json.dumps(agent_results, indent=2, default=_json_serializer)}"
                 )
 
             response = await self.llm.ainvoke(
@@ -442,15 +539,54 @@ You can:
 
             final_response = response.content
 
+        # Store final response conversation in memory
+        user_id = state.get("user_id")
+        session_id = state.get("session_id")
+        if self.conversation_manager and user_id and session_id and not metadata.get("plan_pending_approval"):
+            try:
+                # Store the final aggregated response
+                # Get supervisor display name with fallback
+                supervisor_name = getattr(SREConstants.agents, 'supervisor', None)
+                if supervisor_name:
+                    supervisor_display_name = supervisor_name.display_name
+                else:
+                    supervisor_display_name = "Supervisor Agent"
+                    
+                messages_to_store = [
+                    (f"[Agent: {supervisor_display_name}]\n{final_response}", "ASSISTANT")
+                ]
+                
+                success = self.conversation_manager.store_conversation_batch(
+                    messages=messages_to_store,
+                    user_id=user_id,
+                    session_id=session_id,
+                    agent_name=supervisor_display_name
+                )
+                
+                if success:
+                    logger.info("Supervisor: Successfully stored final response conversation")
+                else:
+                    logger.warning("Supervisor: Failed to store final response conversation")
+                    
+            except Exception as e:
+                logger.error(f"Supervisor: Error storing final response conversation: {e}", exc_info=True)
+
         # Save investigation summary to memory if enabled
         if self.memory_client and not metadata.get("plan_pending_approval"):
             try:
-                await self.memory_hooks.on_investigation_complete(
+                incident_id = state.get("incident_id", "auto-generated")
+                agents_used = state.get("agents_invoked", [])
+                logger.debug(f"Saving investigation summary for incident_id={incident_id}, agents_used={agents_used}")
+                
+                # Use user_id as actor_id for investigation summaries (consistent with conversation memory)
+                actor_id = state.get("user_id", state.get("actor_id", SREConstants.agents.default_actor_id))
+                self.memory_hooks.on_investigation_complete(
                     state=state,
-                    final_response=final_response
+                    final_response=final_response,
+                    actor_id=actor_id
                 )
-                logger.info("Saved investigation summary to memory")
+                logger.info(f"Saved investigation summary to memory for incident {incident_id}")
             except Exception as e:
-                logger.error(f"Failed to save investigation summary: {e}")
+                logger.error(f"Failed to save investigation summary: {e}", exc_info=True)
 
         return {"final_response": final_response, "next": "FINISH"}

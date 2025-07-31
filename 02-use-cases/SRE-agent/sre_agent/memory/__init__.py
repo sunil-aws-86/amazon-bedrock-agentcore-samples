@@ -7,7 +7,8 @@ from .strategies import (
     InfrastructureKnowledge,
     InvestigationSummary,
 )
-from .tools import SaveMemoryTool, RetrieveMemoryTool
+from .tools import SavePreferenceTool, SaveInfrastructureTool, SaveInvestigationTool, RetrieveMemoryTool
+from .conversation_manager import ConversationMemoryManager, ConversationMessage, create_conversation_memory_manager
 
 __all__ = [
     "SREMemoryClient",
@@ -15,6 +16,11 @@ __all__ = [
     "UserPreference",
     "InfrastructureKnowledge",
     "InvestigationSummary",
-    "SaveMemoryTool",
+    "SavePreferenceTool",
+    "SaveInfrastructureTool", 
+    "SaveInvestigationTool",
     "RetrieveMemoryTool",
+    "ConversationMemoryManager",
+    "ConversationMessage",
+    "create_conversation_memory_manager",
 ]

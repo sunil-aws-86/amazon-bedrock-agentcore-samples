@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from .client import SREMemoryClient
+from ..constants import SREConstants
 from .strategies import (
     UserPreference,
     InfrastructureKnowledge,
@@ -32,45 +33,55 @@ class MemoryHookProvider:
     ):
         self.memory_client = memory_client
     
-    async def on_investigation_start(
+    def on_investigation_start(
         self,
         query: str,
         user_id: str,
+        actor_id: str,
+        session_id: str,
         incident_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Hook called when investigation starts."""
         try:
             # Retrieve relevant memories to provide context
-            preferences = await self.memory_client.retrieve_memories(
+            preferences = self.memory_client.retrieve_memories(
                 memory_type="preferences",
                 actor_id=user_id,
                 query=query,
                 max_results=5
             )
             
-            # Get infrastructure knowledge related to the query
-            knowledge = await self.memory_client.retrieve_memories(
+            # Get infrastructure knowledge from all agents
+            logger.info(f"Retrieving infrastructure knowledge from all agents for query: '{query}'")
+            all_knowledge = self.memory_client.retrieve_memories(
                 memory_type="infrastructure",
-                actor_id="default",
+                actor_id="",  # Empty string to retrieve from all agents
                 query=query,
-                max_results=10
+                max_results=50,  # Increased limit to get more memories from all agents
+                session_id=session_id  # Pass session_id for infrastructure namespace
             )
             
+            # Organize knowledge by agent for later distribution
+            knowledge_by_agent = self._organize_memories_by_agent(all_knowledge)
+            logger.info(f"Retrieved infrastructure knowledge from {len(knowledge_by_agent)} different agents")
+            
             # Get past investigation summaries for similar issues
-            investigations = await self.memory_client.retrieve_memories(
+            investigations = self.memory_client.retrieve_memories(
                 memory_type="investigations",
-                actor_id="default",
+                actor_id=actor_id,
                 query=query,
-                max_results=5
+                max_results=5,
+                session_id=session_id  # Pass session_id for investigations namespace
             )
             
             memory_context = {
                 "user_preferences": preferences,
-                "infrastructure_knowledge": knowledge,
+                "infrastructure_by_agent": knowledge_by_agent,
                 "past_investigations": investigations
             }
             
-            logger.info(f"Retrieved memory context for investigation: {len(preferences)} preferences, {len(knowledge)} knowledge items, {len(investigations)} past investigations")
+            total_knowledge = sum(len(memories) for memories in knowledge_by_agent.values())
+            logger.info(f"Retrieved memory context for investigation: {len(preferences)} preferences, {total_knowledge} knowledge items from {len(knowledge_by_agent)} agents, {len(investigations)} past investigations")
             
             return memory_context
             
@@ -82,7 +93,7 @@ class MemoryHookProvider:
                 "past_investigations": []
             }
     
-    async def on_agent_response(
+    def on_agent_response(
         self,
         agent_name: str,
         response: Dict[str, Any],
@@ -90,31 +101,43 @@ class MemoryHookProvider:
     ):
         """Hook called after each agent responds to capture knowledge."""
         try:
-            user_id = state.get("user_id", "default")
+            user_id = state.get("user_id", SREConstants.agents.default_user_id)
             response_text = str(response.get("content", ""))
+            response_length = len(response_text)
+            
+            logger.info(f"Processing {agent_name} agent response for memory capture: user_id={user_id}, response_length={response_length}")
             
             # Extract and save user preferences
-            await self._extract_user_preferences(
+            pref_count_before = len(self.memory_client.retrieve_memories("preferences", user_id, "recent", max_results=100))
+            self._extract_user_preferences(
                 response_text,
                 user_id,
                 agent_name
             )
+            pref_count_after = len(self.memory_client.retrieve_memories("preferences", user_id, "recent", max_results=100))
+            
+            if pref_count_after > pref_count_before:
+                logger.info(f"Extracted {pref_count_after - pref_count_before} new user preferences from {agent_name} response")
             
             # Extract infrastructure knowledge
             if agent_name in ["kubernetes", "metrics", "logs"]:
-                await self._extract_infrastructure_knowledge(
+                logger.info(f"Extracting infrastructure knowledge from {agent_name} agent")
+                self._extract_infrastructure_knowledge(
                     response_text,
                     agent_name,
                     state
                 )
+            else:
+                logger.info(f"Skipping infrastructure extraction for {agent_name} (not in extraction list)")
             
         except Exception as e:
-            logger.error(f"Failed to process agent response for memory capture: {e}")
+            logger.error(f"Failed to process agent response for memory capture: {e}", exc_info=True)
     
-    async def on_investigation_complete(
+    def on_investigation_complete(
         self,
         state: Dict[str, Any],
-        final_response: str
+        final_response: str,
+        actor_id: str
     ):
         """Hook called when investigation completes to save summary."""
         try:
@@ -144,10 +167,17 @@ class MemoryHookProvider:
                 key_findings=key_findings
             )
             
-            success = await _save_investigation_summary(
+            # Get session_id from state
+            session_id = state.get("session_id")
+            if not session_id:
+                raise ValueError("session_id is required in state for investigation summary")
+                
+            success = _save_investigation_summary(
                 self.memory_client,
+                actor_id,
                 incident_id,
-                summary
+                summary,
+                session_id
             )
             
             if success:
@@ -158,13 +188,15 @@ class MemoryHookProvider:
         except Exception as e:
             logger.error(f"Failed to save investigation summary: {e}")
     
-    async def _extract_user_preferences(
+    def _extract_user_preferences(
         self,
         response_text: str,
         user_id: str,
         context: str
     ):
         """Extract user preferences from response text."""
+        logger.info(f"Extracting user preferences from {context} response for user {user_id}")
+        
         # Extract escalation preferences
         escalation_patterns = [
             r"escalate to ([^\s,\.]+@[^\s,\.]+)",
@@ -173,10 +205,13 @@ class MemoryHookProvider:
             r"reach out to ([^\s,\.]+@[^\s,\.]+)"
         ]
         
+        escalation_found = 0
         for pattern in escalation_patterns:
             matches = re.finditer(pattern, response_text, re.IGNORECASE)
             for match in matches:
                 contact = match.group(1)
+                logger.info(f"Found escalation pattern: '{match.group(0)}' -> contact: {contact}")
+                
                 preference = UserPreference(
                     user_id=user_id,
                     preference_type="escalation",
@@ -184,12 +219,20 @@ class MemoryHookProvider:
                     context=f"Mentioned during {context} agent response"
                 )
                 
-                await _save_user_preference(
+                success = _save_user_preference(
                     self.memory_client,
                     user_id,
                     preference
                 )
-                logger.info(f"Captured escalation preference: {contact}")
+                
+                if success:
+                    escalation_found += 1
+                    logger.info(f"Captured escalation preference: {contact}")
+                else:
+                    logger.warning(f"Failed to save escalation preference: {contact}")
+        
+        if escalation_found == 0:
+            logger.info(f"No escalation patterns found in {context} response")
         
         # Extract notification channel preferences
         channel_patterns = [
@@ -199,10 +242,13 @@ class MemoryHookProvider:
             r"post to (#[\w-]+)"
         ]
         
+        channels_found = 0
         for pattern in channel_patterns:
             matches = re.finditer(pattern, response_text, re.IGNORECASE)
             for match in matches:
                 channel = match.group(1)
+                logger.info(f"Found notification pattern: '{match.group(0)}' -> channel: {channel}")
+                
                 preference = UserPreference(
                     user_id=user_id,
                     preference_type="notification",
@@ -210,20 +256,32 @@ class MemoryHookProvider:
                     context=f"Mentioned during {context} agent response"
                 )
                 
-                await _save_user_preference(
+                success = _save_user_preference(
                     self.memory_client,
                     user_id,
                     preference
                 )
-                logger.info(f"Captured notification preference: {channel}")
+                
+                if success:
+                    channels_found += 1
+                    logger.info(f"Captured notification preference: {channel}")
+                else:
+                    logger.warning(f"Failed to save notification preference: {channel}")
+        
+        if channels_found == 0:
+            logger.info(f"No notification channel patterns found in {context} response")
+        
+        logger.info(f"Preference extraction complete: {escalation_found} escalations, {channels_found} channels")
     
-    async def _extract_infrastructure_knowledge(
+    def _extract_infrastructure_knowledge(
         self,
         response_text: str,
         agent_name: str,
         state: Dict[str, Any]
     ):
         """Extract infrastructure knowledge from agent responses."""
+        logger.info(f"Extracting infrastructure knowledge from {agent_name} agent response")
+        
         # Extract service dependencies
         dependency_patterns = [
             r"(\w+) depends on (\w+)",
@@ -231,11 +289,13 @@ class MemoryHookProvider:
             r"(\w+) connects to (\w+)"
         ]
         
+        dependencies_found = 0
         for pattern in dependency_patterns:
             matches = re.finditer(pattern, response_text, re.IGNORECASE)
             for match in matches:
                 service = match.group(1)
                 dependency = match.group(2)
+                logger.info(f"Found dependency pattern: '{match.group(0)}' -> {service} depends on {dependency}")
                 
                 knowledge = InfrastructureKnowledge(
                     service_name=service,
@@ -247,26 +307,38 @@ class MemoryHookProvider:
                     confidence=0.7
                 )
                 
-                await _save_infrastructure_knowledge(
+                success = _save_infrastructure_knowledge(
                     self.memory_client,
                     service,
-                    knowledge
+                    knowledge,
+                    state.get("session_id")
                 )
-                logger.info(f"Captured dependency: {service} -> {dependency}")
+                
+                if success:
+                    dependencies_found += 1
+                    logger.info(f"Captured dependency: {service} -> {dependency}")
+                else:
+                    logger.warning(f"Failed to save dependency: {service} -> {dependency}")
+        
+        if dependencies_found == 0:
+            logger.info(f"No dependency patterns found in {agent_name} response")
         
         # Extract performance baselines for metrics agent
         if agent_name == "metrics":
+            logger.info("Extracting performance baselines from metrics agent")
             baseline_patterns = [
                 r"baseline (\w+) is ([0-9\.]+)",
                 r"normal (\w+) is ([0-9\.]+)",
                 r"typical (\w+) ranges from ([0-9\.]+) to ([0-9\.]+)"
             ]
             
+            baselines_found = 0
             for pattern in baseline_patterns:
                 matches = re.finditer(pattern, response_text, re.IGNORECASE)
                 for match in matches:
                     metric = match.group(1)
                     value = match.group(2)
+                    logger.info(f"Found baseline pattern: '{match.group(0)}' -> {metric} = {value}")
                     
                     knowledge = InfrastructureKnowledge(
                         service_name="system",
@@ -279,12 +351,23 @@ class MemoryHookProvider:
                         confidence=0.8
                     )
                     
-                    await _save_infrastructure_knowledge(
+                    success = _save_infrastructure_knowledge(
                         self.memory_client,
                         "system",
-                        knowledge
+                        knowledge,
+                        state.get("session_id")
                     )
-                    logger.info(f"Captured baseline: {metric} = {value}")
+                    
+                    if success:
+                        baselines_found += 1
+                        logger.info(f"Captured baseline: {metric} = {value}")
+                    else:
+                        logger.warning(f"Failed to save baseline: {metric} = {value}")
+            
+            if baselines_found == 0:
+                logger.info("No baseline patterns found in metrics agent response")
+        
+        logger.info(f"Infrastructure knowledge extraction complete for {agent_name}: {dependencies_found} dependencies found")
     
     def _extract_timeline(
         self,
@@ -360,3 +443,35 @@ class MemoryHookProvider:
             return "escalated"
         else:
             return "ongoing"
+    
+    def _organize_memories_by_agent(
+        self,
+        memories: List[Dict[str, Any]]
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Organize memories by agent based on their namespace."""
+        memories_by_agent = {}
+        
+        for memory in memories:
+            # Extract agent from namespace (format: /sre/infrastructure/{agent_id})
+            namespaces = memory.get("namespaces", [])
+            if namespaces and len(namespaces) > 0:
+                namespace = namespaces[0]
+                # Extract agent_id from namespace like "/sre/infrastructure/kubernetes-agent"
+                parts = namespace.split("/")
+                if len(parts) >= 4 and parts[1] == "sre" and parts[2] == "infrastructure":
+                    agent_id = parts[3]
+                    if agent_id not in memories_by_agent:
+                        memories_by_agent[agent_id] = []
+                    memories_by_agent[agent_id].append(memory)
+                else:
+                    # Fallback for unknown namespace format
+                    if "unknown" not in memories_by_agent:
+                        memories_by_agent["unknown"] = []
+                    memories_by_agent["unknown"].append(memory)
+            else:
+                # No namespace found
+                if "unknown" not in memories_by_agent:
+                    memories_by_agent["unknown"] = []
+                memories_by_agent["unknown"].append(memory)
+        
+        return memories_by_agent

@@ -112,6 +112,7 @@ class TestMemoryIntegration:
                 current_query="Why is my pod failing?",
                 user_id="user123",
                 incident_id="incident_456",
+                session_id="test_session_123",
                 messages=[],
                 next="FINISH",
                 agent_results={},
@@ -131,6 +132,8 @@ class TestMemoryIntegration:
             mock_memory_hooks.on_investigation_start.assert_called_once_with(
                 query="Why is my pod failing?",
                 user_id="user123",
+                actor_id="sre-agent",
+                session_id="test_session_123",
                 incident_id="incident_456"
             )
             
@@ -165,6 +168,7 @@ class TestMemoryIntegration:
                 current_query="Service down",
                 user_id="user123",
                 incident_id="incident_789",
+                session_id="test_session_456",
                 messages=[],
                 next="FINISH",
                 agent_results={"kubernetes": "Pod is healthy"},
