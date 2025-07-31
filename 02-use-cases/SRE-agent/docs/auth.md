@@ -4,9 +4,40 @@ This document covers the setup requirements for IAM permissions and identity pro
 
 ## IAM Permissions Setup
 
-### Core Gateway Permissions
+### AWS Managed Policy
 
-Policy required for invoking CRUDL operations on Gateway Target or Gateway, InvokeTool API, and ListTool:
+For simplified setup, AWS provides a managed policy that includes all necessary permissions for Bedrock AgentCore operations:
+
+**Policy Name**: `BedrockAgentCoreFullAccess`
+
+This managed policy should be attached to the IAM role used by your AgentCore runtime. It includes:
+- All bedrock-agentcore permissions
+- Required IAM:PassRole permissions
+- S3 access for schema storage
+- Other necessary service permissions
+
+### Trust Policy Requirements
+
+The IAM role must include a trust policy that allows the Bedrock AgentCore service to assume the role:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "bedrock-agentcore.amazonaws.com"
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+}
+```
+
+### Core Gateway Permissions (Alternative)
+
+If you prefer granular permissions instead of the managed policy, use this policy for invoking CRUDL operations on Gateway Target or Gateway, InvokeTool API, and ListTool:
 
 ```json
 {
@@ -69,7 +100,6 @@ If the Gateway Target is of Smithy Target type:
 - Execution role must include any AWS permissions for the tools/APIs you wish to invoke
 - Example: Adding a gateway target for S3 → add relevant S3 permissions to the role
 
-### Trust Policy for AgentCore Service
 
 You need to trust the AgentCore service's beta account to assume the role:
 
