@@ -58,7 +58,7 @@ TARGET_DESCRIPTION=$(get_config "target_description")
 CREDENTIAL_PROVIDER_NAME=$(get_config "credential_provider_name")
 
 # Construct derived values
-DISCOVERY_URL="https://cognito-idp.us-west-2.amazonaws.com/${USER_POOL_ID}/.well-known/openid-configuration"
+DISCOVERY_URL="https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}/.well-known/openid-configuration"
 
 # Define API schema filenames
 API_SCHEMAS=(
