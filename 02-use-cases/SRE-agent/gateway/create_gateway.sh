@@ -17,8 +17,18 @@ fi
 # Function to read value from YAML
 get_config() {
     local key=$1
-    # Use cut to get everything after the first colon and space, then remove quotes
-    grep "^${key}:" "${SCRIPT_DIR}/config.yaml" | cut -d':' -f2- | sed 's/^ *"\?\(.*\)"\?$/\1/' | sed 's/"$//'
+    local line=$(grep "^${key}:" "${SCRIPT_DIR}/config.yaml" | cut -d':' -f2-)
+    
+    # Remove leading whitespace
+    line=$(echo "$line" | sed 's/^[ \t]*//')
+    
+    # Handle quoted values - extract content between first pair of quotes, ignore comments after
+    if echo "$line" | grep -q '^".*"'; then
+        echo "$line" | sed 's/^"\([^"]*\)".*/\1/'
+    else
+        # Handle unquoted values - extract everything before comment or end of line, trim trailing whitespace
+        echo "$line" | sed 's/[ \t]*#.*//' | sed 's/[ \t]*$//'
+    fi
 }
 
 # Read configuration from config.yaml
