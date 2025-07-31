@@ -48,6 +48,8 @@ For comprehensive information about the SRE Agent system, please refer to the fo
 * `uv` package manager for Python package management
 * EC2 Instance (recommended: `t3.xlarge` or larger)
 * Valid SSL certificates for HTTPS endpoints
+* [EC2 instance port configuration](docs/ec2-port-configuration.md) - Required inbound ports (443, 8011-8014)
+* [IAM role with BedrockAgentCoreFullAccess policy](docs/auth.md) - Required permissions and trust policy for AgentCore service
 * Either Anthropic API key or AWS credentials configured for Amazon Bedrock
 * Updated OpenAPI specifications with your actual domain name
 
