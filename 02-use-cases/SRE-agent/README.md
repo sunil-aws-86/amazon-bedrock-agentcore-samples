@@ -70,9 +70,8 @@ cp .env.example sre_agent/.env
 # Edit sre_agent/.env and add your Anthropic API key:
 # ANTHROPIC_API_KEY=sk-ant-your-key-here
 
-# Update OpenAPI specifications with your domain
-# Replace 'your-backend-domain.com' with your actual domain in all OpenAPI spec files
-sed -i 's/your-backend-domain.com/mydomain.com/g' backend/openapi_specs/*.yaml
+# Openapi Templates get replaced with your backend domain and saved as .yaml
+BACKEND_DOMAIN=api.mycompany.com ./backend/openapi_specs/generate_specs.sh
 
 # Get your EC2 instance private IP for server binding
 TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" \
