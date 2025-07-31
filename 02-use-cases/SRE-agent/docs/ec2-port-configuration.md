@@ -38,6 +38,28 @@ This document outlines the required port configurations for EC2 instances in the
 - Monitor traffic patterns and unusual access attempts
 - Consider using AWS WAF for additional web application protection
 
+### Production Security Enhancement
+
+For production environments, you can enhance security by restricting access to AWS IP address ranges instead of allowing all internet traffic (0.0.0.0/0):
+
+**Download AWS IP Ranges:**
+```bash
+curl -O https://ip-ranges.amazonaws.com/ip-ranges.json
+```
+
+You can use the [AWS IP address ranges](https://docs.aws.amazon.com/vpc/latest/userguide/aws-ip-ranges.html) to:
+- Identify traffic from AWS services
+- Allow traffic only from specific AWS regions
+- Implement egress filtering for better security
+- Use AWS-managed prefix lists for automated updates
+
+**Example Security Group Configuration:**
+Instead of `0.0.0.0/0`, you can specify:
+- AWS service IP ranges from the JSON file
+- Specific company/customer IP ranges
+- VPC CIDR blocks for internal communication
+- Load balancer subnet ranges
+
 ## Port Usage Summary
 
 | Port | Protocol | Purpose | SSL Required |
