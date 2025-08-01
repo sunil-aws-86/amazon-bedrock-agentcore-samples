@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal
@@ -9,7 +10,7 @@ from typing import Any, Dict, List, Literal
 from langchain_anthropic import ChatAnthropic
 from langchain_aws import ChatBedrock
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .agent_state import AgentState
 from .constants import SREConstants
@@ -89,6 +90,25 @@ class InvestigationPlan(BaseModel):
     steps: List[str] = Field(
         description="List of 3-5 investigation steps to be executed"
     )
+    
+    @field_validator('steps', mode='before')
+    @classmethod
+    def validate_steps(cls, v):
+        """Convert string steps to list if needed."""
+        if isinstance(v, str):
+            # Split by numbered lines and clean up
+            import re
+            lines = v.strip().split('\n')
+            steps = []
+            for line in lines:
+                line = line.strip()
+                if line:
+                    # Remove numbering like "1.", "2.", etc.
+                    clean_line = re.sub(r'^\d+\.\s*', '', line)
+                    if clean_line:
+                        steps.append(clean_line)
+            return steps
+        return v
     agents_sequence: List[str] = Field(
         description="Sequence of agents to invoke (kubernetes_agent, logs_agent, metrics_agent, runbooks_agent)"
     )
@@ -234,6 +254,11 @@ class SupervisorAgent:
                 # Store memory context in state
                 state["memory_context"] = memory_context
                 
+                # Log user preferences for debugging (they're stored in memory_context)
+                user_prefs = memory_context.get("user_preferences", [])
+                logger.info(f"DEBUG: Stored {len(user_prefs)} user preferences in memory_context during planning")
+                logger.info(f"DEBUG: User preferences being stored in memory_context: {user_prefs}")
+                
                 # Format memory context for prompt
                 pref_count = len(memory_context.get("user_preferences", []))
                 infrastructure_by_agent = memory_context.get("infrastructure_by_agent", {})
@@ -368,6 +393,8 @@ Return a structured plan."""
                         "plan_pending_approval": True,
                         "plan_text": plan_text,
                     },
+                    # Preserve memory context in state
+                    "memory_context": state.get("memory_context", {}),
                 }
             else:
                 # Simple plan - start execution
@@ -385,6 +412,8 @@ Return a structured plan."""
                         "plan_text": plan_text,
                         "show_plan": True,
                     },
+                    # Preserve memory context in state
+                    "memory_context": state.get("memory_context", {}),
                 }
         else:
             # Continue executing existing plan
@@ -406,6 +435,8 @@ Return a structured plan."""
                         "routing_reasoning": "Investigation plan completed. Presenting results.",
                         "plan_step": next_step,
                     },
+                    # Preserve memory context in state
+                    "memory_context": state.get("memory_context", {}),
                 }
             else:
                 # Continue with next agent in plan
@@ -423,6 +454,8 @@ Return a structured plan."""
                         "routing_reasoning": f"Executing plan step {next_step + 1}: {step_description}",
                         "plan_step": next_step,
                     },
+                    # Preserve memory context in state
+                    "memory_context": state.get("memory_context", {}),
                 }
 
     async def aggregate_responses(self, state: AgentState) -> Dict[str, Any]:
@@ -468,10 +501,22 @@ You can:
         query = state.get("current_query", "Investigation") or "Investigation"
         plan = metadata.get("investigation_plan")
 
+        # Get user preferences from memory_context (not directly from state)
+        user_preferences = []
+        if "memory_context" in state:
+            memory_ctx = state["memory_context"]
+            user_preferences = memory_ctx.get('user_preferences', [])
+            logger.info(f"DEBUG: Memory context found with {len(user_preferences)} user preferences")
+        else:
+            logger.info("DEBUG: No memory_context found in state")
+        
+        logger.info(f"Retrieved user preferences from memory_context for aggregation: {len(user_preferences)} items")
+        logger.info(f"DEBUG: Full state keys available: {list(state.keys())}")
+        
         try:
             # Try enhanced formatting first
             final_response = self.formatter.format_investigation_response(
-                query=query, agent_results=agent_results, metadata=metadata, plan=plan
+                query=query, agent_results=agent_results, metadata=metadata, plan=plan, user_preferences=user_preferences
             )
         except Exception as e:
             logger.warning(
@@ -495,6 +540,9 @@ You can:
                 )
                 agent_results_json = json.dumps(agent_results, indent=2, default=_json_serializer)
                 auto_approve_plan = state.get("auto_approve_plan", False) or False
+                
+                # Use the user_preferences we already retrieved
+                user_preferences_json = json.dumps(user_preferences, indent=2, default=_json_serializer) if user_preferences else ""
 
                 if is_plan_based:
                     current_step = metadata.get("plan_step", 0)
@@ -510,6 +558,7 @@ You can:
                             current_step=current_step + 1,
                             total_steps=total_steps,
                             plan=plan_json,
+                            user_preferences=user_preferences_json,
                         )
                     )
                 else:
@@ -519,6 +568,7 @@ You can:
                             query=query,
                             agent_results=agent_results_json,
                             auto_approve_plan=auto_approve_plan,
+                            user_preferences=user_preferences_json,
                         )
                     )
 

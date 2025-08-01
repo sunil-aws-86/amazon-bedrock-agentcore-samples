@@ -2,10 +2,12 @@
 
 import argparse
 import asyncio
+import glob
 import json
 import logging
 import os
 import re
+import shutil
 import sys
 import threading
 import time
@@ -127,9 +129,86 @@ class Spinner:
             i += 1
 
 
+def _archive_old_reports(output_dir: str) -> None:
+    """Archive reports from previous days into date-based folders."""
+    try:
+        output_path = Path(output_dir)
+        if not output_path.exists():
+            return
+        
+        # Get today's date in the format used in filenames (YYYYMMDD)
+        today = datetime.now().strftime("%Y%m%d")
+        
+        # Process all .md and .log files in the reports directory
+        for file_path in output_path.glob("*.md"):
+            if not file_path.is_file():
+                continue
+            
+            # Extract date from filename (format: YYYYMMDD)
+            # Handle both old format (query_YYYYMMDD_HHMMSS.md) and new format (query_user_id_USER_YYYYMMDD_HHMMSS.md)
+            filename = file_path.name
+            date_match = re.search(r'202[0-9]{5}', filename)
+            
+            if date_match:
+                date_part = date_match.group()
+                
+                # Only move files that are not from today
+                if date_part != today:
+                    # Extract year, month, day
+                    year = date_part[:4]
+                    month = date_part[4:6]
+                    day = date_part[6:8]
+                    date_folder_name = f"{year}-{month}-{day}"
+                    
+                    # Create date folder if it doesn't exist
+                    date_folder = output_path / date_folder_name
+                    date_folder.mkdir(exist_ok=True)
+                    
+                    # Move file to date folder
+                    destination = date_folder / filename
+                    if not destination.exists():  # Avoid overwriting existing files
+                        shutil.move(str(file_path), str(destination))
+                        logger.info(f"Archived {filename} to {date_folder_name}/")
+        
+        # Also process .log files
+        for file_path in output_path.glob("*.log"):
+            if not file_path.is_file():
+                continue
+            
+            # Extract date from filename (format: YYYYMMDD)
+            # Handle both old format (query_YYYYMMDD_HHMMSS.log) and new format (query_user_id_USER_YYYYMMDD_HHMMSS.log)
+            filename = file_path.name
+            date_match = re.search(r'202[0-9]{5}', filename)
+            
+            if date_match:
+                date_part = date_match.group()
+                
+                # Only move files that are not from today
+                if date_part != today:
+                    # Extract year, month, day
+                    year = date_part[:4]
+                    month = date_part[4:6]
+                    day = date_part[6:8]
+                    date_folder_name = f"{year}-{month}-{day}"
+                    
+                    # Create date folder if it doesn't exist
+                    date_folder = output_path / date_folder_name
+                    date_folder.mkdir(exist_ok=True)
+                    
+                    # Move file to date folder
+                    destination = date_folder / filename
+                    if not destination.exists():  # Avoid overwriting existing files
+                        shutil.move(str(file_path), str(destination))
+                        logger.info(f"Archived {filename} to {date_folder_name}/")
+                        
+    except Exception as e:
+        logger.warning(f"Failed to archive old reports: {e}")
+
+
 def _save_final_response_to_markdown(
     query: str,
     final_response: str,
+    user_id: Optional[str] = None,
     timestamp: Optional[datetime] = None,
     output_dir: str = ".",
     filename_prefix: str = "sre_investigation",
@@ -141,6 +220,9 @@ def _save_final_response_to_markdown(
     # Create output directory if it doesn't exist
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
+    
+    # Archive old reports before saving new one
+    _archive_old_reports(output_dir)
 
     # Create filename with query and timestamp
     # Clean the query string for filename use
@@ -165,7 +247,13 @@ def _save_final_response_to_markdown(
         clean_query = "query"
 
     timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
-    filename = f"{clean_query}_{timestamp_str}.md"
+    
+    # Include user_id in filename if provided
+    if user_id:
+        filename = f"{clean_query}_user_id_{user_id}_{timestamp_str}.md"
+    else:
+        filename = f"{clean_query}_{timestamp_str}.md"
+    
     filepath = output_path / filename
 
     # Create markdown content
@@ -565,6 +653,7 @@ async def _run_interactive_session(
                     filepath = _save_final_response_to_markdown(
                         original_query,
                         last_response,
+                        user_id=user_id,
                         output_dir=output_dir,
                     )
                     if filepath:
@@ -1193,6 +1282,7 @@ async def main():
                                     _save_final_response_to_markdown(
                                         args.prompt,
                                         final_response,
+                                        user_id=user_id,
                                         output_dir=args.output_dir,
                                     )
             except asyncio.TimeoutError:

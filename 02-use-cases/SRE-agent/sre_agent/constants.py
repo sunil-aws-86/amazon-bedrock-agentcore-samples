@@ -169,6 +169,46 @@ class AgentMetadata(BaseModel):
     agent_type: str = Field(description="Agent type for prompt loading")
 
 
+class MemoryConfig(BaseModel):
+    """Memory system configuration constants."""
+    
+    # Query constants for comprehensive memory retrieval
+    user_preferences_query: str = Field(
+        default="user settings communication escalation notification reporting workflow preferences",
+        description="Natural language query to retrieve all user preferences including communication, escalation, notification, reporting, and workflow preferences"
+    )
+    
+    # Memory retrieval limits
+    max_preferences_results: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Maximum number of preference memories to retrieve"
+    )
+    
+    max_infrastructure_results: int = Field(
+        default=50,
+        ge=1,
+        le=100,
+        description="Maximum number of infrastructure knowledge memories to retrieve"
+    )
+    
+    max_investigation_results: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Maximum number of past investigation memories to retrieve"
+    )
+    
+    # Content length limits for memory storage
+    max_content_length: int = Field(
+        default=9000,
+        ge=1000,
+        le=10000,
+        description="Maximum character length for conversation content stored in memory"
+    )
+
+
 class AgentsConstant(BaseModel):
     """Agent-specific constants for the SRE system."""
     
@@ -268,6 +308,7 @@ class SREConstants:
     prompts: PromptConfig = PromptConfig()
     app: ApplicationConfig = ApplicationConfig()
     agents: AgentsConstant = AgentsConstant()
+    memory: MemoryConfig = MemoryConfig()
 
     @classmethod
     def get_model_config(cls, provider: str, **kwargs) -> dict:

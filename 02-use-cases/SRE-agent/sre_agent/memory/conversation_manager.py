@@ -131,12 +131,26 @@ class ConversationMemoryManager:
             
             logger.info(f"Storing conversation batch: {len(messages)} messages, user_id={user_id}, session_id={session_id}, agent={agent_name}")
             
+            # Truncate messages that exceed the maximum content length limit
+            from ..constants import SREConstants
+            max_content_length = SREConstants.memory.max_content_length
+            truncated_messages = []
+            
+            for content, role in messages:
+                if len(content) > max_content_length:
+                    # Truncate content and add warning message
+                    truncated_content = content[:max_content_length - 100] + "\n\n[TRUNCATED: Content exceeded maximum length limit]"
+                    truncated_messages.append((truncated_content, role))
+                    logger.warning(f"Truncated message content from {len(content)} to {len(truncated_content)} characters for user_id={user_id}, session_id={session_id}")
+                else:
+                    truncated_messages.append((content, role))
+            
             # Use AgentCore's create_event with batch of messages
             result = self.memory_client.client.create_event(
                 memory_id=self.memory_client.memory_id,
                 actor_id=user_id,  # Use user_id as actor_id as specified
                 session_id=session_id,  # Use provided session_id
-                messages=messages  # AgentCore expects list of tuples
+                messages=truncated_messages  # AgentCore expects list of tuples
             )
             
             event_id = result.get("eventId", "unknown")
