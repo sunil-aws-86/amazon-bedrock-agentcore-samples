@@ -173,7 +173,7 @@ def _get_helpful_error_message(provider: str, error: Exception) -> str:
     else:  # bedrock
         if _is_auth_error(error):
             return (
-                f"AWS Bedrock authentication failed: {base_error}\n"
+                f"Amazon Bedrock authentication failed: {base_error}\n"
                 "Solutions:\n"
                 "  1. Configure AWS credentials (aws configure)\n"
                 "  2. Set AWS_PROFILE environment variable\n"
@@ -183,7 +183,7 @@ def _get_helpful_error_message(provider: str, error: Exception) -> str:
             )
         elif _is_access_error(error):
             return (
-                f"AWS Bedrock access denied: {base_error}\n"
+                f"Amazon Bedrock access denied: {base_error}\n"
                 "Solutions:\n"
                 "  1. Enable Claude models in Bedrock console\n"
                 "  2. Request model access for your AWS account\n"
@@ -193,7 +193,7 @@ def _get_helpful_error_message(provider: str, error: Exception) -> str:
             )
         else:
             return (
-                f"AWS Bedrock provider error: {base_error}\n"
+                f"Amazon Bedrock provider error: {base_error}\n"
                 "Solutions:\n"
                 "  1. Check AWS service status\n"
                 "  2. Verify the region supports Bedrock\n"
