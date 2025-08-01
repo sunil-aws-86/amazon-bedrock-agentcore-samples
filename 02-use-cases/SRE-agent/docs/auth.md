@@ -158,15 +158,6 @@ If the Lambda is in another account, configure a resource-based policy (RBP) on 
 - For Cognito, you MUST use `allowedClients` with your app client ID
 - For Auth0/Okta, you MUST use `allowedAudience` with your API identifier
 
-**Command Line Usage:**
-```bash
-# For Cognito
-python main.py "MyGateway" --allowed-clients "your-client-id" ...
-
-# For Auth0/Okta  
-python main.py "MyGateway" --allowed-audience "your-audience" ...
-```
-
 ### 1. Amazon Cognito Setup
 
 #### Option A: Automated Setup (Recommended)
