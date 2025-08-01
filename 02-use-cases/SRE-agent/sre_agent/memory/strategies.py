@@ -14,6 +14,31 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _infer_preference_type(categories: List[str]) -> str:
+    """Infer preference type from categories."""
+    if not categories:
+        return "general"
+    
+    # Map categories to preference types
+    category_mapping = {
+        "escalation": "escalation",
+        "notification": "notification", 
+        "notifications": "notification",
+        "workflow": "workflow",
+        "communication": "style",
+        "business": "style",
+        "automation": "workflow"
+    }
+    
+    # Return the first matching category, or default to the first category
+    for category in categories:
+        if category.lower() in category_mapping:
+            return category_mapping[category.lower()]
+    
+    # Fallback to first category or default
+    return categories[0].lower() if categories else "general"
+
+
 class UserPreference(BaseModel):
     """User preference memory model."""
     
@@ -144,15 +169,41 @@ def _retrieve_user_preferences(
                 content = mem.get("content", {})
                 logger.info(f"Processing preference memory {i}: content type={type(content)}")
                 
-                if isinstance(content, dict):
+                # Handle nested content structure where data is in "text" field
+                if isinstance(content, dict) and "text" in content:
+                    # Parse the JSON string in the "text" field
+                    text_data = content["text"]
+                    if isinstance(text_data, str):
+                        preference_data = json.loads(text_data)
+                        
+                        # Transform the stored format to match UserPreference model
+                        transformed_preference = {
+                            "user_id": user_id,
+                            "preference_type": _infer_preference_type(preference_data.get("categories", [])),
+                            "preference_value": {
+                                "preference": preference_data.get("preference", ""),
+                                "categories": preference_data.get("categories", [])
+                            },
+                            "context": preference_data.get("context", ""),
+                            "timestamp": mem.get("createdAt", datetime.utcnow())
+                        }
+                        
+                        preferences.append(UserPreference(**transformed_preference))
+                        logger.info(f"Successfully parsed preference memory {i}")
+                    else:
+                        logger.warning(f"Expected string in 'text' field but got {type(text_data)}")
+                        
+                elif isinstance(content, dict):
+                    # Try direct parsing (backward compatibility)
                     preferences.append(UserPreference(**content))
+                    logger.info(f"Successfully parsed preference memory {i} (direct)")
+                    
                 elif isinstance(content, str):
                     # Try to parse as JSON
-                    import json
                     data = json.loads(content)
                     preferences.append(UserPreference(**data))
+                    logger.info(f"Successfully parsed preference memory {i} (string)")
                 
-                logger.info(f"Successfully parsed preference memory {i}")
             except Exception as e:
                 logger.warning(f"Failed to parse preference memory {i}: {e}")
                 continue
@@ -192,14 +243,16 @@ def _save_infrastructure_knowledge(
 def _retrieve_infrastructure_knowledge(
     client,
     actor_id: str,
-    query: str
+    query: str,
+    session_id: str = None
 ) -> List[InfrastructureKnowledge]:
     """Retrieve relevant infrastructure knowledge."""
     try:
         memories = client.retrieve_memories(
             memory_type="infrastructure",
             actor_id=actor_id,
-            query=query
+            query=query,
+            session_id=session_id
         )
         # Parse memory content structure
         knowledge_items = []
@@ -251,26 +304,76 @@ def _save_investigation_summary(
 def _retrieve_investigation_summaries(
     client,
     actor_id: str,
-    query: str
+    query: str,
+    session_id: str = None
 ) -> List[InvestigationSummary]:
     """Retrieve relevant investigation summaries."""
     try:
         memories = client.retrieve_memories(
             memory_type="investigations",
             actor_id=actor_id,
-            query=query
+            query=query,
+            session_id=session_id
         )
         # Parse memory content structure
         summaries = []
         for mem in memories:
             try:
                 content = mem.get("content", {})
-                if isinstance(content, dict):
+                
+                # Handle nested content structure where data is in "text" field
+                if isinstance(content, dict) and "text" in content:
+                    text_data = content["text"]
+                    
+                    # Check if it's an XML-formatted summary
+                    if isinstance(text_data, str) and text_data.strip().startswith("<summary>"):
+                        # Extract key information from XML summary
+                        import re
+                        
+                        # Extract topic name
+                        topic_match = re.search(r'<topic name="([^"]+)">', text_data)
+                        topic_name = topic_match.group(1) if topic_match else "Unknown Investigation"
+                        
+                        # Extract key information from the text
+                        # Look for timestamps
+                        timestamp_match = re.search(r'timestamp (\d+)', text_data)
+                        
+                        # Extract the main content
+                        content_match = re.search(r'<topic[^>]*>(.*?)</topic>', text_data, re.DOTALL)
+                        main_content = content_match.group(1).strip() if content_match else text_data
+                        
+                        # Create a summary object from the extracted information
+                        investigation_summary = InvestigationSummary(
+                            incident_id=mem.get("memoryRecordId", f"mem-{actor_id}-{hash(text_data)}"),
+                            query=topic_name,
+                            resolution_status="completed",  # Assume completed since it's in memory
+                            key_findings=[main_content[:500] + "..." if len(main_content) > 500 else main_content],
+                            context=f"Retrieved from memory: {topic_name}",
+                            timestamp=mem.get("createdAt", datetime.utcnow())
+                        )
+                        summaries.append(investigation_summary)
+                        logger.info(f"Successfully parsed XML investigation summary: {topic_name}")
+                        
+                    elif isinstance(text_data, str):
+                        # Try JSON parsing
+                        try:
+                            data = json.loads(text_data)
+                            summaries.append(InvestigationSummary(**data))
+                            logger.info("Successfully parsed JSON investigation summary")
+                        except json.JSONDecodeError:
+                            logger.warning(f"Could not parse investigation memory text as JSON: {text_data[:100]}...")
+                            
+                elif isinstance(content, dict):
+                    # Try direct parsing (backward compatibility)
                     summaries.append(InvestigationSummary(**content))
+                    logger.info("Successfully parsed investigation summary (direct)")
+                    
                 elif isinstance(content, str):
-                    import json
+                    # Try to parse as JSON
                     data = json.loads(content)
                     summaries.append(InvestigationSummary(**data))
+                    logger.info("Successfully parsed investigation summary (string)")
+                    
             except Exception as e:
                 logger.warning(f"Failed to parse investigation memory: {e}")
                 continue

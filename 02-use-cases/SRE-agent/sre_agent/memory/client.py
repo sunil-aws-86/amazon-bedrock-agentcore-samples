@@ -246,6 +246,14 @@ class SREMemoryClient:
             logger.info(f"Retrieved {len(result)} {memory_type} memories for {actor_id}")
             if result:
                 logger.info(f"First result keys: {list(result[0].keys()) if result else 'N/A'}")
+                # Log the actual memory contents for debugging
+                logger.info(f"DEBUG: All {len(result)} {memory_type} memory records for {actor_id}:")
+                for i, memory in enumerate(result):
+                    logger.info(f"DEBUG: Memory {i+1}: {memory}")
+                    if 'content' in memory:
+                        logger.info(f"DEBUG: Memory {i+1} content: {memory['content']}")
+                    else:
+                        logger.info(f"DEBUG: Memory {i+1} has no 'content' field")
             
             return result
             
@@ -296,11 +304,13 @@ class SREMemoryClient:
             return f"/sre/users/{actor_id}/preferences"
         elif memory_type == "infrastructure":
             if not session_id:
-                raise ValueError("session_id is required for infrastructure namespace")
+                # For cross-session searches, use base namespace without session_id
+                return f"/sre/infrastructure/{actor_id}"
             return f"/sre/infrastructure/{actor_id}/{session_id}"
         elif memory_type == "investigations":
             if not session_id:
-                raise ValueError("session_id is required for investigations namespace")
+                # For cross-session searches, use base namespace without session_id
+                return f"/sre/investigations/{actor_id}"
             return f"/sre/investigations/{actor_id}/{session_id}"
         else:
             return f"/sre/default/{actor_id}"

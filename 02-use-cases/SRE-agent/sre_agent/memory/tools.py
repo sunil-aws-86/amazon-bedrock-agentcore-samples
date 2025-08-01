@@ -30,9 +30,9 @@ logger = logging.getLogger(__name__)
 
 def _sanitize_actor_id(actor_id: str) -> str:
     """Sanitize actor_id to comply with AWS Bedrock memory regex: [a-zA-Z0-9][a-zA-Z0-9-_/]*"""
-    # Replace spaces with hyphens, convert to lowercase, keep only allowed characters
-    sanitized = actor_id.replace(' ', '-').lower()
-    # Keep only alphanumeric, hyphens, underscores, and forward slashes
+    # Replace spaces with hyphens, keep original case, keep only allowed characters
+    sanitized = actor_id.replace(' ', '-')
+    # Keep only alphanumeric, hyphens, underscores, and forward slashes (preserve case)
     sanitized = ''.join(c for c in sanitized if c.isalnum() or c in '-_/')
     # Ensure it starts with alphanumeric
     if sanitized and not sanitized[0].isalnum():
@@ -261,6 +261,7 @@ class RetrieveMemoryInput(BaseModel):
     query: str = Field(description="Search query to find relevant memories")
     actor_id: str = Field(description="Actor ID to search memories for")
     max_results: int = Field(description="Maximum number of results to return", default=5)
+    session_id: Optional[str] = Field(description="Session ID (required for infrastructure and investigation memories)", default=None)
 
 
 class RetrieveMemoryTool(BaseTool):
@@ -272,6 +273,13 @@ class RetrieveMemoryTool(BaseTool):
     - User preferences for current context (escalation, notification, workflow preferences)
     - Infrastructure knowledge about services (dependencies, patterns, baselines)
     - Past investigation summaries (similar issues, resolution strategies)
+    
+    Parameters:
+    - memory_type: "preference", "infrastructure", or "investigation"
+    - query: search terms for relevant memories
+    - actor_id: user_id for preferences/investigations, agent actor_id for infrastructure
+    - max_results: maximum number of results (default 5)
+    - session_id: optional - if None, searches across all sessions (useful for planning)
     """
     args_schema: Type[BaseModel] = RetrieveMemoryInput
     
@@ -291,6 +299,7 @@ class RetrieveMemoryTool(BaseTool):
         query: str,
         actor_id: str,
         max_results: int = 5,
+        session_id: Optional[str] = None,
         run_manager: Optional[CallbackManagerForToolRun] = None
     ) -> str:
         """Retrieve memories based on query."""
@@ -313,11 +322,14 @@ class RetrieveMemoryTool(BaseTool):
                 return json.dumps(results, indent=2, default=str)
             
             elif memory_type == "infrastructure":
-                logger.info(f"Retrieving infrastructure knowledge for actor_id={sanitized_actor_id}")
+                # For planning purposes, search across all sessions (don't pass session_id)
+                # This allows finding infrastructure knowledge from any past session
+                logger.info(f"Retrieving infrastructure knowledge for actor_id={sanitized_actor_id} (cross-session search)")
                 knowledge = _retrieve_infrastructure_knowledge(
                     self.memory_client,
                     sanitized_actor_id,
-                    query
+                    query,
+                    session_id=None  # Search across all sessions
                 )
                 
                 # Convert to dict for JSON serialization
@@ -326,11 +338,14 @@ class RetrieveMemoryTool(BaseTool):
                 return json.dumps(results, indent=2, default=str)
             
             elif memory_type == "investigation":
-                logger.info(f"Retrieving investigation summaries for actor_id={sanitized_actor_id}")
+                # For planning purposes, search across all sessions (don't pass session_id)
+                # This allows finding past investigation patterns from any session
+                logger.info(f"Retrieving investigation summaries for actor_id={sanitized_actor_id} (cross-session search)")
                 summaries = _retrieve_investigation_summaries(
                     self.memory_client,
                     sanitized_actor_id,
-                    query
+                    query,
+                    session_id=None  # Search across all sessions
                 )
                 
                 # Convert to dict for JSON serialization

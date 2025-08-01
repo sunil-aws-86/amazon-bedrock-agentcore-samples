@@ -44,44 +44,58 @@ class MemoryHookProvider:
         """Hook called when investigation starts."""
         try:
             # Retrieve relevant memories to provide context
+            # Use comprehensive query to get all user preference types
             preferences = self.memory_client.retrieve_memories(
                 memory_type="preferences",
                 actor_id=user_id,
-                query=query,
-                max_results=5
+                query=SREConstants.memory.user_preferences_query,
+                max_results=SREConstants.memory.max_preferences_results
             )
             
-            # Get infrastructure knowledge from all agents
+            # Get infrastructure knowledge from all agents (cross-session search for planning)
             logger.info(f"Retrieving infrastructure knowledge from all agents for query: '{query}'")
             all_knowledge = self.memory_client.retrieve_memories(
                 memory_type="infrastructure",
                 actor_id="",  # Empty string to retrieve from all agents
                 query=query,
-                max_results=50,  # Increased limit to get more memories from all agents
-                session_id=session_id  # Pass session_id for infrastructure namespace
+                max_results=SREConstants.memory.max_infrastructure_results,
+                session_id=None  # Cross-session search for planning purposes
             )
             
             # Organize knowledge by agent for later distribution
             knowledge_by_agent = self._organize_memories_by_agent(all_knowledge)
             logger.info(f"Retrieved infrastructure knowledge from {len(knowledge_by_agent)} different agents")
             
-            # Get past investigation summaries for similar issues
+            # Get past investigation summaries for similar issues (cross-session search for planning)
             investigations = self.memory_client.retrieve_memories(
                 memory_type="investigations",
                 actor_id=actor_id,
                 query=query,
-                max_results=5,
-                session_id=session_id  # Pass session_id for investigations namespace
+                max_results=SREConstants.memory.max_investigation_results,
+                session_id=None  # Cross-session search for planning purposes
             )
             
+            # Extract content from memory records - need to get the 'text' field from within 'content'
+            preference_contents = []
+            for record in preferences:
+                content = record.get("content", {})
+                if content and "text" in content:
+                    preference_contents.append(content["text"])
+            
+            # Log the extracted user preferences for debugging
+            logger.info(f"DEBUG: Extracted user preferences content:")
+            for i, pref in enumerate(preference_contents):
+                logger.info(f"DEBUG: Preference {i+1}: {pref}")
+            logger.info(f"DEBUG: Total extracted preferences: {len(preference_contents)}")
+            
             memory_context = {
-                "user_preferences": preferences,
+                "user_preferences": preference_contents,
                 "infrastructure_by_agent": knowledge_by_agent,
                 "past_investigations": investigations
             }
             
             total_knowledge = sum(len(memories) for memories in knowledge_by_agent.values())
-            logger.info(f"Retrieved memory context for investigation: {len(preferences)} preferences, {total_knowledge} knowledge items from {len(knowledge_by_agent)} agents, {len(investigations)} past investigations")
+            logger.info(f"Retrieved memory context for investigation: {len(preference_contents)} preference contents (from {len(preferences)} records), {total_knowledge} knowledge items from {len(knowledge_by_agent)} agents, {len(investigations)} past investigations")
             
             return memory_context
             

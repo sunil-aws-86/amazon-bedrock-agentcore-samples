@@ -5,11 +5,12 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 from langchain_anthropic import ChatAnthropic
 from langchain_aws import ChatBedrock
 from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.prebuilt import create_react_agent
 from pydantic import BaseModel, Field, field_validator
 
 from .agent_state import AgentState
@@ -20,6 +21,7 @@ from .memory.client import SREMemoryClient
 from .memory.hooks import MemoryHookProvider
 from .memory.config import _load_memory_config
 from .memory import create_conversation_memory_manager
+from .memory.tools import create_memory_tools
 
 
 def _get_user_from_env() -> str:
@@ -195,11 +197,19 @@ class SupervisorAgent:
             )
             self.memory_hooks = MemoryHookProvider(self.memory_client)
             self.conversation_manager = create_conversation_memory_manager(self.memory_client)
-            logger.info("Memory system initialized for supervisor agent")
+            
+            # Create memory tools for supervisor agent
+            self.memory_tools = create_memory_tools(self.memory_client)
+            
+            # Create react agent with memory tools for supervised planning
+            self.planning_agent = create_react_agent(self.llm, self.memory_tools)
+            logger.info(f"Memory system initialized for supervisor agent with {len(self.memory_tools)} memory tools")
         else:
             self.memory_client = None
             self.memory_hooks = None
             self.conversation_manager = None
+            self.memory_tools = []
+            self.planning_agent = None
             logger.info("Memory system disabled")
 
     def _create_llm(self, **kwargs):
@@ -224,6 +234,42 @@ class SupervisorAgent:
         else:
             raise ValueError(f"Unsupported provider: {self.llm_provider}")
 
+    async def retrieve_memory(
+        self, 
+        memory_type: str, 
+        query: str, 
+        actor_id: str, 
+        max_results: int = 5,
+        session_id: Optional[str] = None
+    ) -> str:
+        """Retrieve information from long-term memory using the retrieve_memory tool."""
+        if not self.memory_tools:
+            return "Memory system not enabled"
+        
+        # Find the retrieve_memory tool
+        retrieve_tool = None
+        for tool in self.memory_tools:
+            if tool.name == "retrieve_memory":
+                retrieve_tool = tool
+                break
+        
+        if not retrieve_tool:
+            return "Retrieve memory tool not available"
+        
+        try:
+            logger.info(f"Supervisor using retrieve_memory tool: type={memory_type}, query='{query}', actor_id={actor_id}")
+            result = retrieve_tool._run(
+                memory_type=memory_type,
+                query=query,
+                actor_id=actor_id,
+                max_results=max_results,
+                session_id=session_id
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Error retrieving memory: {e}", exc_info=True)
+            return f"Error retrieving memory: {str(e)}"
+
     async def create_investigation_plan(self, state: AgentState) -> InvestigationPlan:
         """Create an investigation plan for the user's query with memory context."""
         current_query = state.get("current_query", "No query provided")
@@ -237,7 +283,7 @@ class SupervisorAgent:
         memory_context_text = ""
         if self.memory_client:
             try:
-                logger.debug(f"Retrieving memory context for user_id={user_id}, query='{current_query}'")
+                logger.info(f"Retrieving memory context for user_id={user_id}, query='{current_query}'")
                 
                 # Get memory context from hooks
                 if not session_id:
@@ -286,27 +332,104 @@ class SupervisorAgent:
                 logger.error(f"Failed to retrieve memory context: {e}", exc_info=True)
                 memory_context_text = ""
 
+        # Enhanced planning prompt that instructs the agent to use memory tools
         planning_prompt = f"""{self.system_prompt}
 
 User's query: {current_query}
 {memory_context_text}
-Create a simple, focused investigation plan with 2-3 steps maximum. Consider:
+
+CRITICAL: Before creating the investigation plan, you MUST use the retrieve_memory tool to gather relevant context:
+1. Use retrieve_memory("preference", "user settings communication escalation notification", "{user_id}", 5, "{session_id}") to get user preferences
+2. Use retrieve_memory("infrastructure", "[relevant service terms from query]", "sre-agent", 10) to get infrastructure knowledge (searches all sessions)
+3. Use retrieve_memory("investigation", "[key terms from user query]", "{user_id}", 5) to get past investigation patterns (searches all sessions)
+
+After gathering memory context, create a simple, focused investigation plan with 2-3 steps maximum. Consider:
 - Start with the most relevant single agent
 - Add one follow-up agent only if clearly needed
 - Keep it simple - most queries need only 1-2 agents
 - Mark as simple unless it involves production changes or multiple domains
-- Take into account any user preferences and past investigation patterns shown above
+- Take into account user preferences and past investigation patterns from memory
 
-Return a structured plan."""
+Create the plan in JSON format with these fields:
+- steps: List of 3-5 investigation steps
+- agents_sequence: List of agents to invoke (kubernetes_agent, logs_agent, metrics_agent, runbooks_agent)
+- complexity: "simple" or "complex"
+- auto_execute: true or false
+- reasoning: Brief explanation of the investigation approach"""
 
-        structured_llm = self.llm.with_structured_output(InvestigationPlan)
-
-        plan = await structured_llm.ainvoke(
-            [
+        if self.planning_agent and self.memory_tools:
+            # Use planning agent with memory tools
+            try:
+                # Create messages for the planning agent
+                messages = [
+                    SystemMessage(content=planning_prompt),
+                    HumanMessage(content=f"Create an investigation plan for: {current_query}")
+                ]
+                
+                # Use the planning agent with memory tools
+                plan_response = await self.planning_agent.ainvoke({
+                    "messages": messages
+                })
+                
+                # Extract the final message content
+                if plan_response and "messages" in plan_response:
+                    final_message = plan_response["messages"][-1]
+                    plan_text = final_message.content
+                    
+                    # Debug: Log the actual planning agent response
+                    logger.info(f"DEBUG: Planning agent response content: {plan_text}")
+                    
+                    # Try to extract JSON from the response
+                    import re
+                    
+                    # Look for JSON in the response
+                    json_match = re.search(r'\{.*\}', plan_text, re.DOTALL)
+                    if json_match:
+                        json_content = json_match.group()
+                        logger.info(f"DEBUG: Extracted JSON content: {json_content}")
+                        try:
+                            plan_json = json.loads(json_content)
+                            plan = InvestigationPlan(**plan_json)
+                            logger.info("Successfully parsed JSON investigation plan")
+                        except (json.JSONDecodeError, Exception) as e:
+                            logger.warning(f"Failed to parse extracted JSON: {e}")
+                            logger.warning("Could not parse JSON from planning agent response, using fallback")
+                            plan = InvestigationPlan(
+                                steps=["Investigate the reported issue", "Analyze findings and provide recommendations"],
+                                agents_sequence=["metrics_agent", "logs_agent"],
+                                complexity="simple",
+                                auto_execute=True,
+                                reasoning="Default investigation plan due to parsing error"
+                            )
+                    else:
+                        # Fallback to basic plan if JSON parsing fails
+                        logger.warning("Could not find JSON pattern in planning agent response, using fallback")
+                        logger.warning(f"Response content was: {plan_text[:500]}...")
+                        plan = InvestigationPlan(
+                            steps=["Investigate the reported issue", "Analyze findings and provide recommendations"],
+                            agents_sequence=["metrics_agent", "logs_agent"],
+                            complexity="simple",
+                            auto_execute=True,
+                            reasoning="Default investigation plan due to parsing error"
+                        )
+                else:
+                    raise ValueError("No response from planning agent")
+                    
+            except Exception as e:
+                logger.error(f"Error using planning agent with memory tools: {e}", exc_info=True)
+                # Fallback to structured output without tools
+                structured_llm = self.llm.with_structured_output(InvestigationPlan)
+                plan = await structured_llm.ainvoke([
+                    SystemMessage(content=planning_prompt),
+                    HumanMessage(content=current_query),
+                ])
+        else:
+            # Fallback to structured output without memory tools
+            structured_llm = self.llm.with_structured_output(InvestigationPlan)
+            plan = await structured_llm.ainvoke([
                 SystemMessage(content=planning_prompt),
                 HumanMessage(content=current_query),
-            ]
-        )
+            ])
 
         logger.info(
             f"Created investigation plan: {len(plan.steps)} steps, complexity: {plan.complexity}"

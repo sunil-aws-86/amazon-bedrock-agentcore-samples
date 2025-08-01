@@ -141,6 +141,7 @@ class PromptLoader:
         query: str,
         agent_results: str,
         auto_approve_plan: bool = False,
+        user_preferences: str = "",
         **kwargs,
     ) -> str:
         """Get supervisor aggregation prompt based on context.
@@ -165,6 +166,7 @@ class PromptLoader:
                 "query": query,
                 "agent_results": agent_results,
                 "auto_approve_instruction": auto_approve_instruction,
+                "user_preferences": user_preferences,
                 **kwargs,
             }
 
