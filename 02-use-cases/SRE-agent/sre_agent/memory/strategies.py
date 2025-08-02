@@ -260,14 +260,20 @@ def _retrieve_infrastructure_knowledge(
                 
                 # Handle nested content structure where data is in "text" field
                 if isinstance(content, dict) and "text" in content:
-                    # Parse the JSON string in the "text" field
                     text_data = content["text"]
                     if isinstance(text_data, str):
                         try:
+                            # First try to parse as JSON (structured format)
                             data = json.loads(text_data)
                             knowledge_items.append(InfrastructureKnowledge(**data))
                         except json.JSONDecodeError:
-                            logger.warning(f"Could not parse infrastructure memory text as JSON: {text_data[:100]}...")
+                            # If not JSON, treat as plain text infrastructure knowledge
+                            logger.debug(f"Infrastructure memory stored as plain text, converting: {text_data[:100]}...")
+                            knowledge_items.append(InfrastructureKnowledge(
+                                service_name="general",
+                                knowledge_type="investigation",
+                                knowledge_data={"description": text_data, "source": "memory"}
+                            ))
                     else:
                         logger.warning(f"Expected string in 'text' field but got {type(text_data)}")
                         
@@ -276,9 +282,18 @@ def _retrieve_infrastructure_knowledge(
                     knowledge_items.append(InfrastructureKnowledge(**content))
                     
                 elif isinstance(content, str):
-                    # Try to parse as JSON
-                    data = json.loads(content)
-                    knowledge_items.append(InfrastructureKnowledge(**data))
+                    try:
+                        # Try to parse as JSON first
+                        data = json.loads(content)
+                        knowledge_items.append(InfrastructureKnowledge(**data))
+                    except json.JSONDecodeError:
+                        # If not JSON, treat as plain text
+                        logger.debug(f"Infrastructure memory stored as plain text string, converting: {content[:100]}...")
+                        knowledge_items.append(InfrastructureKnowledge(
+                            service_name="general",
+                            knowledge_type="investigation", 
+                            knowledge_data={"description": content, "source": "memory"}
+                        ))
                     
             except Exception as e:
                 logger.warning(f"Failed to parse infrastructure memory: {e}")
