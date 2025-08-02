@@ -145,27 +145,19 @@ start_backend() {
     
     # Alternative SSL paths to check
     if [ ! -f "$SSL_KEY" ] || [ ! -f "$SSL_CERT" ]; then
-        SSL_KEY="/home/ubuntu/certs/privkey.pem"
-        SSL_CERT="/home/ubuntu/certs/fullchain.pem"
-    fi
-    
-    if [ ! -f "$SSL_KEY" ] || [ ! -f "$SSL_CERT" ]; then
         SSL_KEY="/opt/ssl/privkey.pem"
         SSL_CERT="/opt/ssl/fullchain.pem"
-    fi
-    
-    if [ ! -f "$SSL_KEY" ] || [ ! -f "$SSL_CERT" ]; then
-        SSL_KEY="/path/to/private/privkey.pem"
-        SSL_CERT="/path/to/certs/fullchain.pem"
     fi
     
     if [ -f "$SSL_KEY" ] && [ -f "$SSL_CERT" ]; then
         echo "🔒 Found SSL certificates, starting with HTTPS"
         cd "$PROJECT_ROOT"
+        echo "🔧 Executing: bash backend/scripts/start_demo_backend.sh --host \"$PRIVATE_IP\" --ssl-keyfile \"$SSL_KEY\" --ssl-certfile \"$SSL_CERT\""
         bash backend/scripts/start_demo_backend.sh --host "$PRIVATE_IP" --ssl-keyfile "$SSL_KEY" --ssl-certfile "$SSL_CERT"
     else
         echo "⚠️  SSL certificates not found, starting with HTTP"
         cd "$PROJECT_ROOT"
+        echo "🔧 Executing: bash backend/scripts/start_demo_backend.sh --host \"$PRIVATE_IP\""
         bash backend/scripts/start_demo_backend.sh --host "$PRIVATE_IP"
     fi
 }

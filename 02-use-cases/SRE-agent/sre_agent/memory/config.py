@@ -1,6 +1,6 @@
 import logging
+
 from pydantic import BaseModel, Field
-from typing import Optional
 
 # Configure logging with basicConfig
 logging.basicConfig(
@@ -14,9 +14,9 @@ logger = logging.getLogger(__name__)
 
 class MemoryConfig(BaseModel):
     """Configuration for SRE Agent memory system."""
-    
+
     enabled: bool = Field(
-        default=True, 
+        default=True,
         description="Enable memory system"
     )
     memory_name: str = Field(
@@ -27,7 +27,7 @@ class MemoryConfig(BaseModel):
         default="us-east-1",
         description="AWS region for memory storage"
     )
-    
+
     # Retention settings
     preferences_retention_days: int = Field(
         default=90,
@@ -41,7 +41,7 @@ class MemoryConfig(BaseModel):
         default=60,
         description="Days to retain investigation summaries"
     )
-    
+
     # Feature flags
     auto_capture_preferences: bool = Field(
         default=True,

@@ -1,7 +1,8 @@
 import logging
-from typing import List, Tuple, Optional
-from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import List, Optional, Tuple
+
+from pydantic import BaseModel, Field
 
 from .client import SREMemoryClient
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class ConversationMessage(BaseModel):
     """Conversation message model for automatic memory storage."""
-    
+
     content: str = Field(
         description="The message content"
     )
@@ -40,11 +41,11 @@ class ConversationMessage(BaseModel):
 
 class ConversationMemoryManager:
     """Manager for automatic conversation tracking through AgentCore memory."""
-    
+
     def __init__(self, memory_client: SREMemoryClient):
         self.memory_client = memory_client
         logger.info("Initialized ConversationMemoryManager")
-    
+
     def store_conversation_message(
         self,
         content: str,
@@ -71,20 +72,20 @@ class ConversationMemoryManager:
                 raise ValueError("user_id is required for conversation message storage")
             if not session_id:
                 raise ValueError("session_id is required for conversation message storage")
-                
-            # Create conversation message model
-            message = ConversationMessage(
+
+            # Create conversation message model (for validation)
+            ConversationMessage(
                 content=content,
                 role=role,
                 agent_name=agent_name,
                 session_id=session_id
             )
-            
+
             logger.info(f"Storing conversation message: role={role}, user_id={user_id}, session_id={session_id}, agent={agent_name}, content_length={len(content)}")
-            
+
             # Format message as tuple for AgentCore memory
             message_tuple = (content, role)
-            
+
             # Use AgentCore's create_event with user_id as actor_id
             result = self.memory_client.client.create_event(
                 memory_id=self.memory_client.memory_id,
@@ -92,15 +93,15 @@ class ConversationMemoryManager:
                 session_id=session_id,  # Use provided session_id
                 messages=[message_tuple]  # AgentCore expects list of tuples
             )
-            
+
             event_id = result.get("eventId", "unknown")
             logger.info(f"Successfully stored conversation message (event_id: {event_id})")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to store conversation message: {e}", exc_info=True)
             return False
-    
+
     def store_conversation_batch(
         self,
         messages: List[Tuple[str, str]],
@@ -128,14 +129,14 @@ class ConversationMemoryManager:
             if not messages:
                 logger.warning("No messages provided to store_conversation_batch")
                 return True
-            
+
             logger.info(f"Storing conversation batch: {len(messages)} messages, user_id={user_id}, session_id={session_id}, agent={agent_name}")
-            
+
             # Truncate messages that exceed the maximum content length limit
             from ..constants import SREConstants
             max_content_length = SREConstants.memory.max_content_length
             truncated_messages = []
-            
+
             for content, role in messages:
                 if len(content) > max_content_length:
                     # Truncate content and add warning message
@@ -144,7 +145,7 @@ class ConversationMemoryManager:
                     logger.warning(f"Truncated message content from {len(content)} to {len(truncated_content)} characters for user_id={user_id}, session_id={session_id}")
                 else:
                     truncated_messages.append((content, role))
-            
+
             # Use AgentCore's create_event with batch of messages
             result = self.memory_client.client.create_event(
                 memory_id=self.memory_client.memory_id,
@@ -152,11 +153,11 @@ class ConversationMemoryManager:
                 session_id=session_id,  # Use provided session_id
                 messages=truncated_messages  # AgentCore expects list of tuples
             )
-            
+
             event_id = result.get("eventId", "unknown")
             logger.info(f"Successfully stored conversation batch of {len(messages)} messages (event_id: {event_id})")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to store conversation batch: {e}", exc_info=True)
             return False

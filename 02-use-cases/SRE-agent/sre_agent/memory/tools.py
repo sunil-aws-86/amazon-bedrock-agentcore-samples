@@ -1,21 +1,22 @@
-import logging
 import json
-from typing import Optional, List, Type
-from langchain_core.tools import BaseTool
+import logging
+from typing import List, Optional, Type
+
 from langchain_core.callbacks import CallbackManagerForToolRun
+from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from .client import SREMemoryClient
 from .strategies import (
-    UserPreference,
     InfrastructureKnowledge,
     InvestigationSummary,
-    _save_user_preference,
-    _save_infrastructure_knowledge,
-    _save_investigation_summary,
-    _retrieve_user_preferences,
+    UserPreference,
     _retrieve_infrastructure_knowledge,
     _retrieve_investigation_summaries,
+    _retrieve_user_preferences,
+    _save_infrastructure_knowledge,
+    _save_investigation_summary,
+    _save_user_preference,
 )
 
 # Configure logging with basicConfig
@@ -65,7 +66,7 @@ class SaveInvestigationInput(BaseModel):
 
 class SavePreferenceTool(BaseTool):
     """Tool for saving user preferences to long-term memory."""
-    
+
     name: str = "save_preference"
     description: str = """Save user preferences to long-term memory.
     Use this to remember:
@@ -85,17 +86,17 @@ class SavePreferenceTool(BaseTool):
     preferences are saved to the correct user namespace (/sre/users/{user_id}/preferences).
     """
     args_schema: Type[BaseModel] = SavePreferenceInput
-    
+
     def __init__(self, memory_client: SREMemoryClient, **kwargs):
         super().__init__(**kwargs)
         # Store memory client as instance attribute (not Pydantic field)
         object.__setattr__(self, '_memory_client', memory_client)
-    
+
     @property
     def memory_client(self) -> SREMemoryClient:
         """Get the memory client."""
         return getattr(self, '_memory_client')
-    
+
     def _run(
         self,
         content: UserPreference,
@@ -107,21 +108,21 @@ class SavePreferenceTool(BaseTool):
         try:
             sanitized_actor_id = _sanitize_actor_id(actor_id)
             logger.info(f"save_preference called: context={context}, actor_id={actor_id} -> {sanitized_actor_id}, content={json.dumps(content.model_dump(), indent=2, default=str)}")
-            
+
             # Always set context
             if not content.context:
                 content.context = context
-            
+
             success = _save_user_preference(
                 self.memory_client,
                 sanitized_actor_id,
                 content
             )
-            
+
             result = f"Saved user preference: {content.preference_type} for user {content.user_id}" if success else f"Failed to save user preference: {content.preference_type}"
             logger.info(f"save_preference result: {result}")
             return result
-                
+
         except Exception as e:
             error_msg = f"Error saving user preference: {str(e)}"
             logger.error(f"save_preference exception: {error_msg}", exc_info=True)
@@ -130,7 +131,7 @@ class SavePreferenceTool(BaseTool):
 
 class SaveInfrastructureTool(BaseTool):
     """Tool for saving infrastructure knowledge to long-term memory."""
-    
+
     name: str = "save_infrastructure"
     description: str = """Save infrastructure knowledge to long-term memory.
     Use this to remember:
@@ -149,17 +150,17 @@ class SaveInfrastructureTool(BaseTool):
     - session_id: str (REQUIRED - session ID for infrastructure memory storage)
     """
     args_schema: Type[BaseModel] = SaveInfrastructureInput
-    
+
     def __init__(self, memory_client: SREMemoryClient, **kwargs):
         super().__init__(**kwargs)
         # Store memory client as instance attribute (not Pydantic field)
         object.__setattr__(self, '_memory_client', memory_client)
-    
+
     @property
     def memory_client(self) -> SREMemoryClient:
         """Get the memory client."""
         return getattr(self, '_memory_client')
-    
+
     def _run(
         self,
         content: InfrastructureKnowledge,
@@ -172,22 +173,22 @@ class SaveInfrastructureTool(BaseTool):
         try:
             sanitized_actor_id = _sanitize_actor_id(actor_id)
             logger.info(f"save_infrastructure called: context={context}, actor_id={actor_id} -> {sanitized_actor_id}, content={json.dumps(content.model_dump(), indent=2, default=str)}")
-            
+
             # Always set context
             if not content.context:
                 content.context = context
-            
+
             success = _save_infrastructure_knowledge(
                 self.memory_client,
                 sanitized_actor_id,
                 content,
                 session_id
             )
-            
+
             result = f"Saved infrastructure knowledge: {content.knowledge_type} for {content.service_name}" if success else f"Failed to save infrastructure knowledge for {content.service_name}"
             logger.info(f"save_infrastructure result: {result}")
             return result
-                
+
         except Exception as e:
             error_msg = f"Error saving infrastructure knowledge: {str(e)}"
             logger.error(f"save_infrastructure exception: {error_msg}", exc_info=True)
@@ -196,7 +197,7 @@ class SaveInfrastructureTool(BaseTool):
 
 class SaveInvestigationTool(BaseTool):
     """Tool for saving investigation summaries to long-term memory."""
-    
+
     name: str = "save_investigation"
     description: str = """Save investigation summaries to long-term memory.
     Use this to remember:
@@ -217,17 +218,17 @@ class SaveInvestigationTool(BaseTool):
     - session_id: str (REQUIRED - session ID for investigation memory storage)
     """
     args_schema: Type[BaseModel] = SaveInvestigationInput
-    
+
     def __init__(self, memory_client: SREMemoryClient, **kwargs):
         super().__init__(**kwargs)
         # Store memory client as instance attribute (not Pydantic field)
         object.__setattr__(self, '_memory_client', memory_client)
-    
+
     @property
     def memory_client(self) -> SREMemoryClient:
         """Get the memory client."""
         return getattr(self, '_memory_client')
-    
+
     def _run(
         self,
         content: InvestigationSummary,
@@ -240,11 +241,11 @@ class SaveInvestigationTool(BaseTool):
         try:
             sanitized_actor_id = _sanitize_actor_id(actor_id)
             logger.info(f"save_investigation called: context={context}, actor_id={actor_id} -> {sanitized_actor_id}, content={json.dumps(content.model_dump(), indent=2, default=str)}")
-            
+
             # Always set context
             if not content.context:
                 content.context = context
-            
+
             success = _save_investigation_summary(
                 self.memory_client,
                 sanitized_actor_id,
@@ -252,11 +253,11 @@ class SaveInvestigationTool(BaseTool):
                 content,
                 session_id
             )
-            
+
             result = f"Saved investigation summary for incident {content.incident_id}" if success else f"Failed to save investigation summary for {content.incident_id}"
             logger.info(f"save_investigation result: {result}")
             return result
-                
+
         except Exception as e:
             error_msg = f"Error saving investigation summary: {str(e)}"
             logger.error(f"save_investigation exception: {error_msg}", exc_info=True)
@@ -274,7 +275,7 @@ class RetrieveMemoryInput(BaseModel):
 
 class RetrieveMemoryTool(BaseTool):
     """Tool for retrieving memories during SRE operations."""
-    
+
     name: str = "retrieve_memory"
     description: str = """Retrieve relevant information from long-term memory.
     Query for:
@@ -290,17 +291,17 @@ class RetrieveMemoryTool(BaseTool):
     - session_id: optional - if None, searches across all sessions (useful for planning)
     """
     args_schema: Type[BaseModel] = RetrieveMemoryInput
-    
+
     def __init__(self, memory_client: SREMemoryClient, **kwargs):
         super().__init__(**kwargs)
         # Store memory client as instance attribute (not Pydantic field)
         object.__setattr__(self, '_memory_client', memory_client)
-    
+
     @property
     def memory_client(self) -> SREMemoryClient:
         """Get the memory client."""
         return getattr(self, '_memory_client')
-    
+
     def _run(
         self,
         memory_type: str,
@@ -314,21 +315,21 @@ class RetrieveMemoryTool(BaseTool):
         try:
             sanitized_actor_id = _sanitize_actor_id(actor_id)
             logger.info(f"retrieve_memory called: type={memory_type}, query='{query}', actor_id={actor_id} -> {sanitized_actor_id}, max_results={max_results}")
-            
+
             if memory_type == "preference":
-                
+
                 logger.info(f"Retrieving user preferences for actor_id={sanitized_actor_id}")
                 preferences = _retrieve_user_preferences(
                     self.memory_client,
                     sanitized_actor_id,
                     query
                 )
-                
+
                 # Convert to dict for JSON serialization
                 results = [pref.model_dump() for pref in preferences[:max_results]]
                 logger.info(f"retrieve_memory found {len(results)} user preferences (limited to {max_results})")
                 return json.dumps(results, indent=2, default=str)
-            
+
             elif memory_type == "infrastructure":
                 # Use the passed session_id parameter (None = cross-session search, specific = session-specific)
                 search_type = "cross-session search" if session_id is None else f"session-specific search (session: {session_id})"
@@ -339,12 +340,12 @@ class RetrieveMemoryTool(BaseTool):
                     query,
                     session_id=session_id  # Use the passed parameter
                 )
-                
+
                 # Convert to dict for JSON serialization
                 results = [know.model_dump() for know in knowledge[:max_results]]
                 logger.info(f"retrieve_memory found {len(results)} infrastructure knowledge items (limited to {max_results})")
                 return json.dumps(results, indent=2, default=str)
-            
+
             elif memory_type == "investigation":
                 # Use the passed session_id parameter (None = cross-session search, specific = session-specific)
                 search_type = "cross-session search" if session_id is None else f"session-specific search (session: {session_id})"
@@ -355,12 +356,12 @@ class RetrieveMemoryTool(BaseTool):
                     query,
                     session_id=session_id  # Use the passed parameter
                 )
-                
+
                 # Convert to dict for JSON serialization
                 results = [summary.model_dump() for summary in summaries[:max_results]]
                 logger.info(f"retrieve_memory found {len(results)} investigation summaries (limited to {max_results})")
                 return json.dumps(results, indent=2, default=str)
-            
+
             else:
                 error_result = {
                     "error": f"Unknown memory type: {memory_type}",
@@ -368,7 +369,7 @@ class RetrieveMemoryTool(BaseTool):
                 }
                 logger.warning(f"retrieve_memory error: unknown memory type {memory_type}")
                 return json.dumps(error_result, indent=2)
-                
+
         except Exception as e:
             error_result = {
                 "error": f"Error retrieving {memory_type} memory: {str(e)}"

@@ -1,8 +1,9 @@
-import logging
 import json
-from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field
+import logging
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 # Configure logging with basicConfig
 logging.basicConfig(
@@ -18,30 +19,30 @@ def _infer_preference_type(categories: List[str]) -> str:
     """Infer preference type from categories."""
     if not categories:
         return "general"
-    
+
     # Map categories to preference types
     category_mapping = {
         "escalation": "escalation",
-        "notification": "notification", 
+        "notification": "notification",
         "notifications": "notification",
         "workflow": "workflow",
         "communication": "style",
         "business": "style",
         "automation": "workflow"
     }
-    
+
     # Return the first matching category, or default to the first category
     for category in categories:
         if category.lower() in category_mapping:
             return category_mapping[category.lower()]
-    
+
     # Fallback to first category or default
     return categories[0].lower() if categories else "general"
 
 
 class UserPreference(BaseModel):
     """User preference memory model."""
-    
+
     user_id: str = Field(
         description="Unique identifier for the user"
     )
@@ -63,7 +64,7 @@ class UserPreference(BaseModel):
 
 class InfrastructureKnowledge(BaseModel):
     """Infrastructure knowledge memory model."""
-    
+
     service_name: str = Field(
         description="Name of the service or infrastructure component"
     )
@@ -91,7 +92,7 @@ class InfrastructureKnowledge(BaseModel):
 
 class InvestigationSummary(BaseModel):
     """Investigation summary memory model."""
-    
+
     incident_id: str = Field(
         description="Unique identifier for the incident"
     )
@@ -160,21 +161,21 @@ def _retrieve_user_preferences(
             query=query
         )
         logger.info(f"Retrieved {len(memories)} preference memories from storage")
-        
+
         # Note: Need to parse the memory content structure
         preferences = []
         for i, mem in enumerate(memories):
             try:
                 # Extract content from memory structure
                 content = mem.get("content", {})
-                
+
                 # Handle nested content structure where data is in "text" field
                 if isinstance(content, dict) and "text" in content:
                     # Parse the JSON string in the "text" field
                     text_data = content["text"]
                     if isinstance(text_data, str):
                         preference_data = json.loads(text_data)
-                        
+
                         # Transform the stored format to match UserPreference model
                         transformed_preference = {
                             "user_id": user_id,
@@ -186,25 +187,25 @@ def _retrieve_user_preferences(
                             "context": preference_data.get("context", ""),
                             "timestamp": mem.get("createdAt", datetime.utcnow())
                         }
-                        
+
                         preferences.append(UserPreference(**transformed_preference))
                     else:
                         logger.warning(f"Expected string in 'text' field but got {type(text_data)}")
-                        
+
                 elif isinstance(content, dict):
                     # Try direct parsing (backward compatibility)
                     preferences.append(UserPreference(**content))
-                    
+
                 elif isinstance(content, str):
                     # Try to parse as JSON
                     data = json.loads(content)
                     preferences.append(UserPreference(**data))
-                
+
             except Exception as e:
                 logger.warning(f"Failed to parse preference memory {i}: {e}")
                 logger.debug(f"Failed preference memory {i} content: {mem}")
                 continue
-        
+
         logger.info(f"Retrieved {len(preferences)} parsed user preferences for {user_id}")
         return preferences
     except Exception as e:
@@ -256,14 +257,32 @@ def _retrieve_infrastructure_knowledge(
         for mem in memories:
             try:
                 content = mem.get("content", {})
-                if isinstance(content, dict):
+                
+                # Handle nested content structure where data is in "text" field
+                if isinstance(content, dict) and "text" in content:
+                    # Parse the JSON string in the "text" field
+                    text_data = content["text"]
+                    if isinstance(text_data, str):
+                        try:
+                            data = json.loads(text_data)
+                            knowledge_items.append(InfrastructureKnowledge(**data))
+                        except json.JSONDecodeError:
+                            logger.warning(f"Could not parse infrastructure memory text as JSON: {text_data[:100]}...")
+                    else:
+                        logger.warning(f"Expected string in 'text' field but got {type(text_data)}")
+                        
+                elif isinstance(content, dict):
+                    # Try direct parsing (backward compatibility)
                     knowledge_items.append(InfrastructureKnowledge(**content))
+                    
                 elif isinstance(content, str):
-                    import json
+                    # Try to parse as JSON
                     data = json.loads(content)
                     knowledge_items.append(InfrastructureKnowledge(**data))
+                    
             except Exception as e:
                 logger.warning(f"Failed to parse infrastructure memory: {e}")
+                logger.debug(f"Failed infrastructure memory content: {mem}")
                 continue
         return knowledge_items
     except Exception as e:
@@ -317,28 +336,27 @@ def _retrieve_investigation_summaries(
         for mem in memories:
             try:
                 content = mem.get("content", {})
-                
+
                 # Handle nested content structure where data is in "text" field
                 if isinstance(content, dict) and "text" in content:
                     text_data = content["text"]
-                    
+
                     # Check if it's an XML-formatted summary
                     if isinstance(text_data, str) and text_data.strip().startswith("<summary>"):
                         # Extract key information from XML summary
                         import re
-                        
+
                         # Extract topic name
                         topic_match = re.search(r'<topic name="([^"]+)">', text_data)
                         topic_name = topic_match.group(1) if topic_match else "Unknown Investigation"
-                        
+
                         # Extract key information from the text
-                        # Look for timestamps
-                        timestamp_match = re.search(r'timestamp (\d+)', text_data)
-                        
+                        # Note: timestamps not currently used but pattern preserved for future enhancement
+
                         # Extract the main content
                         content_match = re.search(r'<topic[^>]*>(.*?)</topic>', text_data, re.DOTALL)
                         main_content = content_match.group(1).strip() if content_match else text_data
-                        
+
                         # Create a summary object from the extracted information
                         investigation_summary = InvestigationSummary(
                             incident_id=mem.get("memoryRecordId", f"mem-{actor_id}-{hash(text_data)}"),
@@ -349,7 +367,7 @@ def _retrieve_investigation_summaries(
                             timestamp=mem.get("createdAt", datetime.utcnow())
                         )
                         summaries.append(investigation_summary)
-                        
+
                     elif isinstance(text_data, str):
                         # Try JSON parsing
                         try:
@@ -357,16 +375,16 @@ def _retrieve_investigation_summaries(
                             summaries.append(InvestigationSummary(**data))
                         except json.JSONDecodeError:
                             logger.warning(f"Could not parse investigation memory text as JSON: {text_data[:100]}...")
-                            
+
                 elif isinstance(content, dict):
                     # Try direct parsing (backward compatibility)
                     summaries.append(InvestigationSummary(**content))
-                    
+
                 elif isinstance(content, str):
                     # Try to parse as JSON
                     data = json.loads(content)
                     summaries.append(InvestigationSummary(**data))
-                    
+
             except Exception as e:
                 logger.warning(f"Failed to parse investigation memory: {e}")
                 logger.debug(f"Failed investigation memory content: {mem}")

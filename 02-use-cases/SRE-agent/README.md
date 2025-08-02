@@ -84,8 +84,8 @@ PRIVATE_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" \
 cd backend
 ./scripts/start_demo_backend.sh \
   --host $PRIVATE_IP  \
-  --ssl-keyfile /etc/ssl/private/privkey.pem \
-  --ssl-certfile /etc/ssl/certs/fullchain.pem
+  --ssl-keyfile /opt/ssl/privkey.pem \
+  --ssl-certfile /opt/ssl/fullchain.pem
 cd ..
 
 # Create and configure the AgentCore Gateway
