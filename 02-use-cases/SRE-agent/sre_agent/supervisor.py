@@ -150,32 +150,45 @@ def _read_supervisor_prompt() -> str:
     except Exception as e:
         logger.warning(f"Could not read supervisor prompt file: {e}")
 
-    # Default prompt if file not found
-    return """You are the Supervisor Agent orchestrating a team of specialized SRE agents.
+    # Fallback to supervisor fallback prompt file
+    try:
+        fallback_path = (
+            Path(__file__).parent
+            / "config"
+            / "prompts"
+            / "supervisor_fallback_prompt.txt"
+        )
+        if fallback_path.exists():
+            return fallback_path.read_text().strip()
+    except Exception as e:
+        logger.warning(f"Could not read supervisor fallback prompt file: {e}")
 
-Your team consists of:
-1. Kubernetes Infrastructure Agent - Handles K8s cluster operations, pod status, deployments, and resource monitoring
-2. Application Logs Agent - Analyzes logs, searches for patterns, and identifies errors
-3. Performance Metrics Agent - Monitors application performance, resource usage, and availability
-4. Operational Runbooks Agent - Provides troubleshooting guides and operational procedures
+    # Final hardcoded fallback if files not found
+    return "You are the Supervisor Agent orchestrating a team of specialized SRE agents."
 
-Your responsibilities:
-- Analyze incoming queries and determine which agent(s) should handle them
-- Route queries to the most appropriate agent based on the query content
-- Determine if multiple agents need to collaborate
-- Aggregate responses when multiple agents are involved
-- Provide clear, actionable responses to users
 
-Routing guidelines:
-- For Kubernetes/infrastructure issues → kubernetes_agent
-- For log analysis or error investigation → logs_agent  
-- For performance/metrics questions → metrics_agent
-- For procedures/troubleshooting guides → runbooks_agent
-- For complex issues spanning multiple domains → multiple agents
+def _read_planning_prompt() -> str:
+    """Read planning prompt from file."""
+    try:
+        prompt_path = (
+            Path(__file__).parent
+            / "config"
+            / "prompts"
+            / "supervisor_planning_prompt.txt"
+        )
+        if prompt_path.exists():
+            return prompt_path.read_text().strip()
+    except Exception as e:
+        logger.warning(f"Could not read planning prompt file: {e}")
 
-Always consider if a query requires multiple perspectives. For example:
-- "Why is my service down?" might need kubernetes_agent (pod status) + logs_agent (errors) + metrics_agent (performance)
-- "Debug high latency" might need metrics_agent (performance data) + logs_agent (error patterns)"""
+    # Fallback planning prompt
+    return """Create a simple, focused investigation plan with 2-3 steps maximum.
+Create the plan in JSON format with these fields:
+- steps: List of 3-5 investigation steps
+- agents_sequence: List of agents to invoke (kubernetes_agent, logs_agent, metrics_agent, runbooks_agent)
+- complexity: "simple" or "complex"
+- auto_execute: true or false
+- reasoning: Brief explanation of the investigation approach"""
 
 
 class SupervisorAgent:
@@ -302,8 +315,8 @@ class SupervisorAgent:
                 
                 # Log user preferences for debugging (they're stored in memory_context)
                 user_prefs = memory_context.get("user_preferences", [])
-                logger.info(f"DEBUG: Stored {len(user_prefs)} user preferences in memory_context during planning")
-                logger.info(f"DEBUG: User preferences being stored in memory_context: {user_prefs}")
+                logger.debug(f"Stored {len(user_prefs)} user preferences in memory_context during planning")
+                logger.debug(f"User preferences being stored in memory_context: {user_prefs}")
                 
                 # Format memory context for prompt
                 pref_count = len(memory_context.get("user_preferences", []))
@@ -333,29 +346,18 @@ class SupervisorAgent:
                 memory_context_text = ""
 
         # Enhanced planning prompt that instructs the agent to use memory tools
+        planning_instructions = _read_planning_prompt()
+        formatted_planning_instructions = planning_instructions.format(
+            user_id=user_id,
+            session_id=session_id
+        )
+        
         planning_prompt = f"""{self.system_prompt}
 
 User's query: {current_query}
 {memory_context_text}
 
-CRITICAL: Before creating the investigation plan, you MUST use the retrieve_memory tool to gather relevant context:
-1. Use retrieve_memory("preference", "user settings communication escalation notification", "{user_id}", 5, "{session_id}") to get user preferences
-2. Use retrieve_memory("infrastructure", "[relevant service terms from query]", "sre-agent", 10) to get infrastructure knowledge (searches all sessions)
-3. Use retrieve_memory("investigation", "[key terms from user query]", "{user_id}", 5) to get past investigation patterns (searches all sessions)
-
-After gathering memory context, create a simple, focused investigation plan with 2-3 steps maximum. Consider:
-- Start with the most relevant single agent
-- Add one follow-up agent only if clearly needed
-- Keep it simple - most queries need only 1-2 agents
-- Mark as simple unless it involves production changes or multiple domains
-- Take into account user preferences and past investigation patterns from memory
-
-Create the plan in JSON format with these fields:
-- steps: List of 3-5 investigation steps
-- agents_sequence: List of agents to invoke (kubernetes_agent, logs_agent, metrics_agent, runbooks_agent)
-- complexity: "simple" or "complex"
-- auto_execute: true or false
-- reasoning: Brief explanation of the investigation approach"""
+{formatted_planning_instructions}"""
 
         if self.planning_agent and self.memory_tools:
             # Use planning agent with memory tools
@@ -377,7 +379,7 @@ Create the plan in JSON format with these fields:
                     plan_text = final_message.content
                     
                     # Debug: Log the actual planning agent response
-                    logger.info(f"DEBUG: Planning agent response content: {plan_text}")
+                    logger.debug(f"Planning agent response content: {plan_text}")
                     
                     # Try to extract JSON from the response
                     import re
@@ -386,7 +388,7 @@ Create the plan in JSON format with these fields:
                     json_match = re.search(r'\{.*\}', plan_text, re.DOTALL)
                     if json_match:
                         json_content = json_match.group()
-                        logger.info(f"DEBUG: Extracted JSON content: {json_content}")
+                        logger.debug(f"Extracted JSON content: {json_content}")
                         try:
                             plan_json = json.loads(json_content)
                             plan = InvestigationPlan(**plan_json)
@@ -629,12 +631,12 @@ You can:
         if "memory_context" in state:
             memory_ctx = state["memory_context"]
             user_preferences = memory_ctx.get('user_preferences', [])
-            logger.info(f"DEBUG: Memory context found with {len(user_preferences)} user preferences")
+            logger.debug(f"Memory context found with {len(user_preferences)} user preferences")
         else:
-            logger.info("DEBUG: No memory_context found in state")
+            logger.debug("No memory_context found in state")
         
         logger.info(f"Retrieved user preferences from memory_context for aggregation: {len(user_preferences)} items")
-        logger.info(f"DEBUG: Full state keys available: {list(state.keys())}")
+        logger.debug(f"Full state keys available: {list(state.keys())}")
         
         try:
             # Try enhanced formatting first

@@ -52,6 +52,7 @@ class SaveInfrastructureInput(BaseModel):
     content: InfrastructureKnowledge = Field(description="Infrastructure knowledge data")
     context: str = Field(description="REQUIRED: Context describing where/why this knowledge was discovered")
     actor_id: str = Field(description="Actor ID for memory storage")
+    session_id: str = Field(description="REQUIRED: Session ID for infrastructure memory storage")
 
 
 class SaveInvestigationInput(BaseModel):
@@ -59,6 +60,7 @@ class SaveInvestigationInput(BaseModel):
     content: InvestigationSummary = Field(description="Investigation summary data")
     context: str = Field(description="REQUIRED: Context describing the investigation circumstances")
     actor_id: str = Field(description="Actor ID for memory storage")
+    session_id: str = Field(description="REQUIRED: Session ID for investigation memory storage")
 
 
 class SavePreferenceTool(BaseTool):
@@ -144,6 +146,7 @@ class SaveInfrastructureTool(BaseTool):
       - confidence: float (optional - confidence level 0.0-1.0, defaults to 0.8)
     - context: str (REQUIRED - describes where/why this knowledge was discovered)
     - actor_id: str (REQUIRED - use "sre-agent-{agent_name}")
+    - session_id: str (REQUIRED - session ID for infrastructure memory storage)
     """
     args_schema: Type[BaseModel] = SaveInfrastructureInput
     
@@ -162,6 +165,7 @@ class SaveInfrastructureTool(BaseTool):
         content: InfrastructureKnowledge,
         context: str,
         actor_id: str,
+        session_id: str,
         run_manager: Optional[CallbackManagerForToolRun] = None
     ) -> str:
         """Save infrastructure knowledge."""
@@ -176,7 +180,8 @@ class SaveInfrastructureTool(BaseTool):
             success = _save_infrastructure_knowledge(
                 self.memory_client,
                 sanitized_actor_id,
-                content
+                content,
+                session_id
             )
             
             result = f"Saved infrastructure knowledge: {content.knowledge_type} for {content.service_name}" if success else f"Failed to save infrastructure knowledge for {content.service_name}"
@@ -209,6 +214,7 @@ class SaveInvestigationTool(BaseTool):
       - key_findings: list (optional - key findings from the investigation)
     - context: str (REQUIRED - describes the investigation circumstances)
     - actor_id: str (REQUIRED - use "sre-agent-{agent_name}")
+    - session_id: str (REQUIRED - session ID for investigation memory storage)
     """
     args_schema: Type[BaseModel] = SaveInvestigationInput
     
@@ -227,6 +233,7 @@ class SaveInvestigationTool(BaseTool):
         content: InvestigationSummary,
         context: str,
         actor_id: str,
+        session_id: str,
         run_manager: Optional[CallbackManagerForToolRun] = None
     ) -> str:
         """Save investigation summary."""
@@ -242,7 +249,8 @@ class SaveInvestigationTool(BaseTool):
                 self.memory_client,
                 sanitized_actor_id,
                 content.incident_id,
-                content
+                content,
+                session_id
             )
             
             result = f"Saved investigation summary for incident {content.incident_id}" if success else f"Failed to save investigation summary for {content.incident_id}"
@@ -322,14 +330,14 @@ class RetrieveMemoryTool(BaseTool):
                 return json.dumps(results, indent=2, default=str)
             
             elif memory_type == "infrastructure":
-                # For planning purposes, search across all sessions (don't pass session_id)
-                # This allows finding infrastructure knowledge from any past session
-                logger.info(f"Retrieving infrastructure knowledge for actor_id={sanitized_actor_id} (cross-session search)")
+                # Use the passed session_id parameter (None = cross-session search, specific = session-specific)
+                search_type = "cross-session search" if session_id is None else f"session-specific search (session: {session_id})"
+                logger.info(f"Retrieving infrastructure knowledge for actor_id={sanitized_actor_id} ({search_type})")
                 knowledge = _retrieve_infrastructure_knowledge(
                     self.memory_client,
                     sanitized_actor_id,
                     query,
-                    session_id=None  # Search across all sessions
+                    session_id=session_id  # Use the passed parameter
                 )
                 
                 # Convert to dict for JSON serialization
@@ -338,14 +346,14 @@ class RetrieveMemoryTool(BaseTool):
                 return json.dumps(results, indent=2, default=str)
             
             elif memory_type == "investigation":
-                # For planning purposes, search across all sessions (don't pass session_id)
-                # This allows finding past investigation patterns from any session
-                logger.info(f"Retrieving investigation summaries for actor_id={sanitized_actor_id} (cross-session search)")
+                # Use the passed session_id parameter (None = cross-session search, specific = session-specific)
+                search_type = "cross-session search" if session_id is None else f"session-specific search (session: {session_id})"
+                logger.info(f"Retrieving investigation summaries for actor_id={sanitized_actor_id} ({search_type})")
                 summaries = _retrieve_investigation_summaries(
                     self.memory_client,
                     sanitized_actor_id,
                     query,
-                    session_id=None  # Search across all sessions
+                    session_id=session_id  # Use the passed parameter
                 )
                 
                 # Convert to dict for JSON serialization

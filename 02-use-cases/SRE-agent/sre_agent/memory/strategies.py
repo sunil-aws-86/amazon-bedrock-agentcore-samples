@@ -167,7 +167,6 @@ def _retrieve_user_preferences(
             try:
                 # Extract content from memory structure
                 content = mem.get("content", {})
-                logger.info(f"Processing preference memory {i}: content type={type(content)}")
                 
                 # Handle nested content structure where data is in "text" field
                 if isinstance(content, dict) and "text" in content:
@@ -189,23 +188,21 @@ def _retrieve_user_preferences(
                         }
                         
                         preferences.append(UserPreference(**transformed_preference))
-                        logger.info(f"Successfully parsed preference memory {i}")
                     else:
                         logger.warning(f"Expected string in 'text' field but got {type(text_data)}")
                         
                 elif isinstance(content, dict):
                     # Try direct parsing (backward compatibility)
                     preferences.append(UserPreference(**content))
-                    logger.info(f"Successfully parsed preference memory {i} (direct)")
                     
                 elif isinstance(content, str):
                     # Try to parse as JSON
                     data = json.loads(content)
                     preferences.append(UserPreference(**data))
-                    logger.info(f"Successfully parsed preference memory {i} (string)")
                 
             except Exception as e:
                 logger.warning(f"Failed to parse preference memory {i}: {e}")
+                logger.debug(f"Failed preference memory {i} content: {mem}")
                 continue
         
         logger.info(f"Retrieved {len(preferences)} parsed user preferences for {user_id}")
@@ -352,30 +349,27 @@ def _retrieve_investigation_summaries(
                             timestamp=mem.get("createdAt", datetime.utcnow())
                         )
                         summaries.append(investigation_summary)
-                        logger.info(f"Successfully parsed XML investigation summary: {topic_name}")
                         
                     elif isinstance(text_data, str):
                         # Try JSON parsing
                         try:
                             data = json.loads(text_data)
                             summaries.append(InvestigationSummary(**data))
-                            logger.info("Successfully parsed JSON investigation summary")
                         except json.JSONDecodeError:
                             logger.warning(f"Could not parse investigation memory text as JSON: {text_data[:100]}...")
                             
                 elif isinstance(content, dict):
                     # Try direct parsing (backward compatibility)
                     summaries.append(InvestigationSummary(**content))
-                    logger.info("Successfully parsed investigation summary (direct)")
                     
                 elif isinstance(content, str):
                     # Try to parse as JSON
                     data = json.loads(content)
                     summaries.append(InvestigationSummary(**data))
-                    logger.info("Successfully parsed investigation summary (string)")
                     
             except Exception as e:
                 logger.warning(f"Failed to parse investigation memory: {e}")
+                logger.debug(f"Failed investigation memory content: {mem}")
                 continue
         return summaries
     except Exception as e:

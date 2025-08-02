@@ -245,15 +245,15 @@ class SREMemoryClient:
             
             logger.info(f"Retrieved {len(result)} {memory_type} memories for {actor_id}")
             if result:
-                logger.info(f"First result keys: {list(result[0].keys()) if result else 'N/A'}")
-                # Log the actual memory contents for debugging
-                logger.info(f"DEBUG: All {len(result)} {memory_type} memory records for {actor_id}:")
+                logger.debug(f"First result keys: {list(result[0].keys()) if result else 'N/A'}")
+                # Log the actual memory contents for debugging (debug level to reduce noise)
+                logger.debug(f"All {len(result)} {memory_type} memory records for {actor_id}:")
                 for i, memory in enumerate(result):
-                    logger.info(f"DEBUG: Memory {i+1}: {memory}")
+                    logger.debug(f"Memory {i+1}: {memory}")
                     if 'content' in memory:
-                        logger.info(f"DEBUG: Memory {i+1} content: {memory['content']}")
+                        logger.debug(f"Memory {i+1} content: {memory['content']}")
                     else:
-                        logger.info(f"DEBUG: Memory {i+1} has no 'content' field")
+                        logger.debug(f"Memory {i+1} has no 'content' field")
             
             return result
             
@@ -296,22 +296,34 @@ class SREMemoryClient:
         """Get the appropriate namespace for a memory type and actor.
         
         Based on the namespace templates defined in memory initialization:
-        - preferences: /sre/users/{actorId}/preferences (no sessionId)
-        - infrastructure: /sre/infrastructure/{actorId}/{sessionId}
-        - investigations: /sre/investigations/{actorId}/{sessionId}
+        - preferences: /sre/users/{actorId}/preferences (no sessionId - always user-wide)
+        - infrastructure: /sre/infrastructure/{actorId}/{sessionId} (session-specific) or
+                         /sre/infrastructure/{actorId} (cross-session when session_id=None)
+        - investigations: /sre/investigations/{actorId}/{sessionId} (session-specific) or
+                         /sre/investigations/{actorId} (cross-session when session_id=None)
+        
+        Args:
+            memory_type: Type of memory (preferences, infrastructure, investigations)
+            actor_id: Actor identifier (user or agent)
+            session_id: Session identifier. If None, enables cross-session search for infrastructure/investigations
         """
         if memory_type == "preferences":
+            # Preferences are always user-wide, ignore session_id
             return f"/sre/users/{actor_id}/preferences"
         elif memory_type == "infrastructure":
-            if not session_id:
-                # For cross-session searches, use base namespace without session_id
+            if session_id is None:
+                # Cross-session search: use base namespace to search across all sessions
                 return f"/sre/infrastructure/{actor_id}"
-            return f"/sre/infrastructure/{actor_id}/{session_id}"
+            else:
+                # Session-specific search: include session_id in namespace
+                return f"/sre/infrastructure/{actor_id}/{session_id}"
         elif memory_type == "investigations":
-            if not session_id:
-                # For cross-session searches, use base namespace without session_id
+            if session_id is None:
+                # Cross-session search: use base namespace to search across all sessions
                 return f"/sre/investigations/{actor_id}"
-            return f"/sre/investigations/{actor_id}/{session_id}"
+            else:
+                # Session-specific search: include session_id in namespace
+                return f"/sre/investigations/{actor_id}/{session_id}"
         else:
             return f"/sre/default/{actor_id}"
     

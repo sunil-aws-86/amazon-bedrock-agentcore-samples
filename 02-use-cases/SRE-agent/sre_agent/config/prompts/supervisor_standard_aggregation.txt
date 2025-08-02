@@ -22,4 +22,10 @@ CRITICAL: If user preferences are provided above, tailor your response according
 - Respect user's timezone preferences for timestamps
 - Adjust technical detail level based on user's investigation style preference
 
+DATA ACCURACY REQUIREMENTS:
+- ONLY present data with clear tool attribution (e.g., "per get_metrics_tool")
+- Mark unverified claims as "[unverified]" or exclude them
+- If multiple conflicting values exist, note the discrepancy
+- Preserve "No data available" statements rather than substituting estimates
+
 Keep the response professional and focused.{auto_approve_instruction}

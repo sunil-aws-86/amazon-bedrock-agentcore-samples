@@ -52,11 +52,11 @@ class MemoryHookProvider:
                 max_results=SREConstants.memory.max_preferences_results
             )
             
-            # Get infrastructure knowledge from all agents (cross-session search for planning)
-            logger.info(f"Retrieving infrastructure knowledge from all agents for query: '{query}'")
+            # Get infrastructure knowledge for specific user only
+            logger.info(f"Retrieving infrastructure knowledge for user '{user_id}' for query: '{query}'")
             all_knowledge = self.memory_client.retrieve_memories(
                 memory_type="infrastructure",
-                actor_id="",  # Empty string to retrieve from all agents
+                actor_id=user_id,  # Only retrieve memories for the current user
                 query=query,
                 max_results=SREConstants.memory.max_infrastructure_results,
                 session_id=None  # Cross-session search for planning purposes
@@ -64,16 +64,27 @@ class MemoryHookProvider:
             
             # Organize knowledge by agent for later distribution
             knowledge_by_agent = self._organize_memories_by_agent(all_knowledge)
-            logger.info(f"Retrieved infrastructure knowledge from {len(knowledge_by_agent)} different agents")
+            # Log summary with breakdown
+            if knowledge_by_agent:
+                agent_summary = ", ".join([f"{agent}: {len(memories)} memories" for agent, memories in knowledge_by_agent.items()])
+                logger.info(f"Retrieved infrastructure knowledge for user '{user_id}' from {len(knowledge_by_agent)} different sources: {agent_summary}")
+            else:
+                logger.info(f"No infrastructure knowledge found for user '{user_id}'")
             
             # Get past investigation summaries for similar issues (cross-session search for planning)
+            logger.info(f"Retrieving investigation summaries for user '{user_id}' for query: '{query}'")
             investigations = self.memory_client.retrieve_memories(
                 memory_type="investigations",
-                actor_id=actor_id,
+                actor_id=user_id,  # Use user_id to retrieve only user-specific investigations
                 query=query,
                 max_results=SREConstants.memory.max_investigation_results,
                 session_id=None  # Cross-session search for planning purposes
             )
+            
+            if investigations:
+                logger.info(f"Retrieved {len(investigations)} past investigation summaries for user '{user_id}'")
+            else:
+                logger.info(f"No past investigation summaries found for user '{user_id}'")
             
             # Extract content from memory records - need to get the 'text' field from within 'content'
             preference_contents = []
@@ -83,10 +94,10 @@ class MemoryHookProvider:
                     preference_contents.append(content["text"])
             
             # Log the extracted user preferences for debugging
-            logger.info(f"DEBUG: Extracted user preferences content:")
+            logger.debug(f"Extracted user preferences content:")
             for i, pref in enumerate(preference_contents):
-                logger.info(f"DEBUG: Preference {i+1}: {pref}")
-            logger.info(f"DEBUG: Total extracted preferences: {len(preference_contents)}")
+                logger.debug(f"Preference {i+1}: {pref}")
+            logger.debug(f"Total extracted preferences: {len(preference_contents)}")
             
             memory_context = {
                 "user_preferences": preference_contents,
@@ -487,5 +498,9 @@ class MemoryHookProvider:
                 if "unknown" not in memories_by_agent:
                     memories_by_agent["unknown"] = []
                 memories_by_agent["unknown"].append(memory)
+        
+        # Log memory count by source (these are actually stored under user namespaces)
+        for source_id, source_memories in memories_by_agent.items():
+            logger.info(f"Infrastructure memories from namespace '{source_id}': {len(source_memories)} items")
         
         return memories_by_agent
