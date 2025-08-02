@@ -3,7 +3,7 @@
 Helper script to manage memories in the SRE agent memory system.
 
 Usage:
-    python manage_memories.py [ACTION] [OPTIONS]
+    uv run python scripts/manage_memories.py [ACTION] [OPTIONS]
 
 Actions:
     list      List memories (default action)
@@ -11,13 +11,13 @@ Actions:
     delete    Delete memories
 
 Examples:
-    python manage_memories.py                           # List all memories
-    python manage_memories.py list --memory-type investigations  # List only investigations
-    python manage_memories.py update                    # Load user preferences from user_config.yaml
-    python manage_memories.py update --config-file custom.yaml  # Load from custom file
-    python manage_memories.py delete --memory-id mem-123        # Delete specific memory resource
-    python manage_memories.py delete --memory-record-id mem-abc # Delete specific memory record
-    python manage_memories.py delete --all                      # Delete all memory resources
+    uv run python scripts/manage_memories.py                           # List all memories
+    uv run python scripts/manage_memories.py list --memory-type investigations  # List only investigations
+    uv run python scripts/manage_memories.py update                    # Load user preferences from user_config.yaml
+    uv run python scripts/manage_memories.py update --config-file custom.yaml  # Load from custom file
+    uv run python scripts/manage_memories.py delete --memory-id mem-123        # Delete specific memory resource
+    uv run python scripts/manage_memories.py delete --memory-record-id mem-abc # Delete specific memory record
+    uv run python scripts/manage_memories.py delete --all                      # Delete all memory resources
 """
 
 import argparse
@@ -29,8 +29,9 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime
 
-# Add the sre_agent module to path
-sys.path.insert(0, str(Path(__file__).parent / "sre_agent"))
+# Add the project root to path so we can import sre_agent
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 from sre_agent.memory.client import SREMemoryClient
 from sre_agent.memory.config import _load_memory_config
@@ -48,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 def _read_memory_id() -> str:
     """Read memory ID from .memory_id file."""
-    memory_id_file = Path(__file__).parent / ".memory_id"
+    memory_id_file = Path(__file__).parent.parent / ".memory_id"
     
     if memory_id_file.exists():
         memory_id = memory_id_file.read_text().strip()
@@ -269,8 +270,10 @@ def _load_user_preferences_from_yaml(yaml_file: Path) -> dict:
 def _handle_update_action(args) -> None:
     """Handle update action to load user preferences from YAML."""
     try:
-        # Default YAML file path
+        # Default YAML file path (look in scripts directory first, then project root)
         yaml_file = Path(__file__).parent / "user_config.yaml"
+        if not yaml_file.exists():
+            yaml_file = Path(__file__).parent.parent / "user_config.yaml"
         
         # Use custom path if provided
         if hasattr(args, 'config_file') and args.config_file:
