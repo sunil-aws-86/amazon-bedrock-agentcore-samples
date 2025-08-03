@@ -2,7 +2,7 @@
 
 ## Overview
 
-The SRE Agent includes a sophisticated long-term memory system built on Amazon Bedrock AgentCore Memory that enables persistent user preferences, cross-session learning, and personalized investigation experiences. This system remembers user preferences, learns from past investigations, and tailors reports based on individual user roles and workflows.
+The SRE Agent includes a sophisticated long-term memory system built on [Amazon Bedrock AgentCore Memory](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/memory.html) that enables persistent user preferences, cross-session learning, and personalized investigation experiences. This system remembers user preferences, learns from past investigations, and tailors reports based on individual user roles and workflows.
 
 The system provides three distinct memory strategies for different types of information and comes pre-configured with user personas to demonstrate personalized investigations.
 
@@ -85,6 +85,8 @@ memory_client.create_event(
 ```
 
 ## Memory Strategies
+
+These are the three long-term memory strategies supported by Amazon Bedrock AgentCore (see [Memory Getting Started Guide](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/memory-getting-started.html)):
 
 ### 1. User Preferences Memory
 **Strategy:** Semantic Memory with 90-day retention  
@@ -341,13 +343,6 @@ From recent `agent.log` entries showing the extraction process:
 2025-08-03 17:45:30,140,p1289365,{hooks.py:71},INFO,Retrieved infrastructure knowledge for user 'Alice' from 1 different sources: Alice: 50 memories
 ```
 
-#### Legacy Pattern Recognition (sre_agent/memory/hooks.py)
-The system also maintains fallback regex patterns for basic information extraction:
-- **Email addresses for escalation**: Patterns like `r"escalate to ([^\s,\.]+@[^\s,\.]+)"`
-- **Slack channels for notifications**: Patterns like `r"notify (#[\w-]+)"`
-- **Service dependencies**: Patterns like `r"(\w+) depends on (\w+)"`
-- **Performance baselines and thresholds**: Extracted from metrics agent responses
-- **Error patterns and resolution strategies**: Captured during investigation completion
 
 ### Enhanced Agent Response Processing and Logging
 
@@ -385,19 +380,6 @@ All agent interactions are automatically stored in conversation memory with mess
 2025-08-03 17:45:30,530,p1289365,{agent_nodes.py:375},INFO,Kubernetes Infrastructure Agent: Successfully stored conversation in memory
 ```
 
-#### Error Handling and Fallbacks
-The system includes error handling with graceful fallbacks and detailed error logging:
-
-```python
-# From agent_nodes.py - Error handling example
-try:
-    # Extract infrastructure knowledge from JSON
-    knowledge_items = self._extract_infrastructure_knowledge(response_text)
-    logger.info(f"Extracted {len(knowledge_items)} infrastructure knowledge items")
-except Exception as e:
-    logger.warning(f"Infrastructure knowledge extraction failed: {e}")
-    # Falls back to regex patterns for basic extraction
-```
 
 #### Cross-Session Memory Access
 The system provides cross-session memory retrieval for better investigation context:
