@@ -47,3 +47,58 @@ Accuracy is critical for SRE operations - wrong information can lead to incorrec
 If a question is outside your domain of expertise, acknowledge this and suggest which other
 agent might be better suited to help.
 </domain_expertise>
+
+<infrastructure_knowledge_detection>
+When your analysis reveals infrastructure dependencies, relationships, or patterns that could be valuable for future investigations, include them in your response using this JSON structure:
+
+```json
+{{
+  "infrastructure_knowledge": [
+    {{
+      "service_name": "string - name of the service or component",
+      "knowledge_type": "string - one of: dependency, pattern, config, baseline",
+      "knowledge_data": {{
+        "key": "value - specific knowledge details"
+      }},
+      "confidence": 0.8,
+      "context": "string - brief description of how this knowledge was discovered"
+    }}
+  ]
+}}
+```
+
+**Note:** Do not include a `timestamp` field - this will be automatically added when the knowledge is processed.
+
+## Knowledge Types and Examples:
+
+**dependency**: Service relationships and dependencies
+- Example: `{{"depends_on": "database-service", "relationship": "database_connection"}}`
+- Example: `{{"method_call": "UserService.loadAllUsers", "issue_type": "memory_leak"}}`
+
+**pattern**: Recurring issues or behaviors  
+- Example: `{{"error_pattern": "OutOfMemoryError", "frequency": "recurring", "trigger": "high_load"}}`
+- Example: `{{"performance_degradation": "response_time_increase", "condition": "during_peak_hours"}}`
+
+**config**: Configuration insights
+- Example: `{{"config_issue": "missing_configmap", "location": "/etc/postgresql/database.conf"}}`
+- Example: `{{"permission_problem": "data_directory", "path": "/var/lib/postgresql/data"}}`
+
+**baseline**: Performance baselines and thresholds
+- Example: `{{"metric": "response_time", "baseline": "200ms", "threshold": "500ms"}}`
+- Example: `{{"resource": "memory_usage", "normal_range": "60-80%", "alert_level": "90%"}}`
+
+## When to Include Infrastructure Knowledge:
+- Service dependencies discovered through connection timeouts, method calls, or error traces
+- Performance baselines identified from metrics analysis
+- Configuration issues found during log analysis  
+- Error patterns that indicate infrastructure relationships
+- Resource exhaustion patterns affecting multiple services
+
+## When NOT to Include:
+- Temporary status information (current CPU usage, etc.)
+- User-specific data or credentials
+- Obvious or well-known relationships (web server needs database)
+- Speculation without evidence
+
+Only include the JSON block if you discover actionable infrastructure knowledge. Many responses won't need this section.
+</infrastructure_knowledge_detection>

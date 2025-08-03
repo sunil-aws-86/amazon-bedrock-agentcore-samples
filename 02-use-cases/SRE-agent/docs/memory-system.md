@@ -42,6 +42,48 @@ Both commands identify identical technical issues but present them differently:
 
 For a detailed comparison showing how the memory system personalizes identical incidents, see: [**Memory System Report Comparison**](examples/Memory_System_Analysis_User_Personalization_20250802_162648.md)
 
+## Amazon Bedrock AgentCore Memory Architecture
+
+The memory system uses Amazon Bedrock AgentCore Memory's sophisticated event-based model with automatic namespace routing:
+
+### Memory Strategies and Namespaces
+When the SRE Agent initializes, it creates three memory strategies with specific namespace patterns:
+
+1. **User Preferences Strategy**: Namespace pattern `/sre/users/{user_id}/preferences`
+2. **Infrastructure Knowledge Strategy**: Namespace pattern `/sre/infrastructure/{user_id}/{session_id}`  
+3. **Investigation Memory Strategy**: Namespace pattern `/sre/investigations/{user_id}/{session_id}`
+
+### How Namespace Routing Works
+The key insight is that **the SRE Agent only needs to provide the actor_id** when calling `create_event()`. Amazon Bedrock AgentCore Memory automatically:
+
+1. **Strategy Matching**: Examines all strategies associated with the memory resource
+2. **Namespace Resolution**: Determines which namespace(s) the event belongs to based on the actor_id
+3. **Automatic Routing**: Places the event in the correct strategy's namespace without requiring explicit namespace specification
+4. **Multi-Strategy Storage**: A single event can be stored in multiple strategies if the namespaces match
+
+### Event-based Model Benefits
+- **Immutable Events**: All memory entries are stored as immutable events that cannot be modified
+- **Accumulative Learning**: New events accumulate over time without deleting old ones
+- **Strategy Aggregation**: Memory strategies aggregate events from their namespace to provide relevant context
+- **Automatic Organization**: Events are automatically organized by user, session, and memory type
+
+### Example Event Flow
+```python
+# SRE Agent calls create_event with just actor_id and content
+memory_client.create_event(
+    memory_id="sre_agent_memory-xyz",
+    actor_id="Alice",  # Amazon Bedrock AgentCore Memory uses this to route to correct namespace
+    session_id="investigation_2025_01_15",
+    messages=[("preference_data", "ASSISTANT")]
+)
+
+# Amazon Bedrock AgentCore Memory automatically:
+# 1. Checks all strategy namespaces for this memory
+# 2. Matches actor_id "Alice" to namespace "/sre/users/Alice/preferences" 
+# 3. Stores event in User Preferences Strategy
+# 4. Makes event available for future retrievals
+```
+
 ## Memory Strategies
 
 ### 1. User Preferences Memory
@@ -128,47 +170,122 @@ For a detailed comparison showing how the memory system personalizes identical i
 }
 ```
 
-## Amazon Bedrock AgentCore Memory Architecture
+## Memory Flow During Investigation
 
-The memory system uses Amazon Bedrock AgentCore Memory's sophisticated event-based model with automatic namespace routing:
-
-### Memory Strategies and Namespaces
-When the SRE Agent initializes, it creates three memory strategies with specific namespace patterns:
-
-1. **User Preferences Strategy**: Namespace pattern `/sre/users/{user_id}/preferences`
-2. **Infrastructure Knowledge Strategy**: Namespace pattern `/sre/infrastructure/{user_id}/{session_id}`  
-3. **Investigation Memory Strategy**: Namespace pattern `/sre/investigations/{user_id}/{session_id}`
-
-### How Namespace Routing Works
-The key insight is that **the SRE Agent only needs to provide the actor_id** when calling `create_event()`. Amazon Bedrock AgentCore Memory automatically:
-
-1. **Strategy Matching**: Examines all strategies associated with the memory resource
-2. **Namespace Resolution**: Determines which namespace(s) the event belongs to based on the actor_id
-3. **Automatic Routing**: Places the event in the correct strategy's namespace without requiring explicit namespace specification
-4. **Multi-Strategy Storage**: A single event can be stored in multiple strategies if the namespaces match
-
-### Event-based Model Benefits
-- **Immutable Events**: All memory entries are stored as immutable events that cannot be modified
-- **Accumulative Learning**: New events accumulate over time without deleting old ones
-- **Strategy Aggregation**: Memory strategies aggregate events from their namespace to provide relevant context
-- **Automatic Organization**: Events are automatically organized by user, session, and memory type
-
-### Example Event Flow
-```python
-# SRE Agent calls create_event with just actor_id and content
-memory_client.create_event(
-    memory_id="sre_agent_memory-xyz",
-    actor_id="Alice",  # Amazon Bedrock AgentCore Memory uses this to route to correct namespace
-    session_id="investigation_2025_01_15",
-    messages=[("preference_data", "ASSISTANT")]
-)
-
-# Amazon Bedrock AgentCore Memory automatically:
-# 1. Checks all strategy namespaces for this memory
-# 2. Matches actor_id "Alice" to namespace "/sre/users/Alice/preferences" 
-# 3. Stores event in User Preferences Strategy
-# 4. Makes event available for future retrievals
 ```
+┌─────────────┐    ┌─────────────────────┐              ┌──────────────────────┐
+│    User     │    │     Supervisor      │              │  Amazon Bedrock      │
+│             │    │      Agent          │              │  AgentCore Memory    │
+└──────┬──────┘    └──────────┬──────────┘              └──────────┬───────────┘
+       │                      │                                    │
+       │ Investigation Query  │                                    │
+       ├─────────────────────►│                                    │
+       │                      │                                    │
+       │              ┌───────▼───────┐                            │
+       │              │ on_investigation_start()                   │
+       │              │ (memory_hooks) │                           │
+       │              └───────┬───────┘                            │
+       │                      │                                    │
+       │                      │ retrieve_memory(preferences)       │
+       │                      ├───────────────────────────────────►│
+       │                      │◄───────────────────────────────────┤
+       │                      │ User preferences (10)              │
+       │                      │                                    │
+       │                      │ retrieve_memory(infrastructure)    │
+       │                      ├───────────────────────────────────►│
+       │                      │◄───────────────────────────────────┤
+       │                      │ Infrastructure data (50)           │
+       │                      │                                    │
+       │                      │ retrieve_memory(investigations)    │
+       │                      ├───────────────────────────────────►│
+       │                      │◄───────────────────────────────────┤
+       │                      │ Past investigations (5)            │
+       │                      │                                    │
+       │              ┌───────▼───────┐                            │
+       │              │ Planning Agent with Memory Tools           │
+       │              │ (supervisor.py)                            │
+       │              └───────┬───────┘                            │
+       │                      │                                    │
+       │                      │ retrieve_memory(preference)        │
+       │                      ├───────────────────────────────────►│
+       │                      │◄───────────────────────────────────┤
+       │                      │ User preferences (5)               │
+       │                      │                                    │
+       │                      │ retrieve_memory(infrastructure)    │
+       │                      ├───────────────────────────────────►│
+       │                      │◄───────────────────────────────────┤
+       │                      │ Infrastructure knowledge (10)      │
+       │                      │                                    │
+       │                      │ retrieve_memory(investigation)     │
+       │                      ├───────────────────────────────────►│
+       │                      │◄───────────────────────────────────┤
+       │                      │ Past investigations (5)            │
+       │                      │                                    │
+       │              ┌───────▼───────┐                            │
+       │              │ Create Investigation Plan                  │
+       │              │ (JSON format with memory context)          │
+       │              └───────┬───────┘                            │
+       │                      │                                    │
+       │                      │ save_investigation()               │
+       │                      │ (planning summary)                 │
+       │                      ├───────────────────────────────────►│
+       │                      │◄───────────────────────────────────┤
+       │                      │ Event ID                           │
+       │                      │                                    │
+       │              ┌───────▼───────┐                            │
+       │              │ Execute Investigation                      │
+       │              └───────┬───────┘                            │
+       │                      │                                    │
+       │                      ├─► Metrics Agent                    │
+       │                      ├─► Logs Agent                       │
+       │                      ├─► K8s Agent                        │
+       │                      ├─► Runbooks Agent                   │
+       │                      │                                    │
+       │              ┌───────▼───────┐                            │
+       │              │ Agent Response Processing                  │
+       │              │ (in agent_nodes.py)                        │
+       │              └───────┬───────┘                            │
+       │                      │                                    │
+       │                      │ Store conversation                 │
+       │                      │ (agent response + tools)           │
+       │                      ├───────────────────────────────────►│
+       │                      │                                    │
+       │              ┌───────▼───────┐                            │
+       │              │ on_agent_response()                        │
+       │              │ (pattern recognition)                      │
+       │              └───────┬───────┘                            │
+       │                      │                                    │
+       │                      │ _save_infrastructure_knowledge()   │
+       │                      │ (direct function call)             │
+       │                      ├───────────────────────────────────►│
+       │                      │                                    │
+       │                      │ _save_user_preference()            │
+       │                      │ (direct function call)             │
+       │                      ├───────────────────────────────────►│
+       │                      │                                    │
+       │              ┌───────▼───────┐                            │
+       │              │ on_investigation_complete()                │
+       │              │ (memory_hooks) │                           │
+       │              └───────┬───────┘                            │
+       │                      │                                    │
+       │                      │ _save_investigation_summary()      │
+       │                      │ (direct function call)             │
+       │                      ├───────────────────────────────────►│
+       │                      │◄───────────────────────────────────┤
+       │                      │ Final Event ID                     │
+       │                      │                                    │
+       │ Final Response       │                                    │
+       │◄─────────────────────┤                                    │
+       │                      │                                    │
+```
+
+### Key Memory Interactions
+
+The memory system integrates at three key points during an investigation. The [`supervisor.py`](../sre_agent/supervisor.py) orchestrates memory retrieval at startup and saves investigation summaries at completion. Individual agent responses are processed by [`agent_nodes.py`](../sre_agent/agent_nodes.py) which triggers pattern extraction through [`memory/hooks.py`](../sre_agent/memory/hooks.py).
+
+- **Investigation Start**: Retrieves user preferences, infrastructure knowledge, and past investigations to provide context
+- **Agent Responses**: Automatically extracts patterns like escalation contacts, notification channels, and service dependencies  
+- **Investigation Complete**: Saves comprehensive summary with timeline, actions taken, and key findings
 
 ## How Memory Capture Works
 
@@ -182,16 +299,114 @@ The SRE Agent code (specifically `sre_agent/memory/hooks.py`) uses regex pattern
 3. **Data Structuring**: Converts matched patterns into structured Pydantic models
 4. **Memory Storage**: Calls Amazon Bedrock AgentCore Memory's `create_event()` API to store the structured data
 
-### Specific Pattern Recognition (sre_agent/memory/hooks.py)
-The system automatically extracts structured information from agent responses using regex patterns:
+### Infrastructure Knowledge Extraction via Agent JSON Responses
+
+The system now uses a sophisticated agent-based approach for infrastructure knowledge extraction. Each agent is instructed to include infrastructure knowledge in their responses using structured JSON format:
+
+#### Agent Response Format
+```json
+{
+  "infrastructure_knowledge": [
+    {
+      "service_name": "web-app-deployment",
+      "knowledge_type": "baseline",
+      "knowledge_data": {
+        "cpu_usage_normal": "75%",
+        "memory_usage_normal": "85%",
+        "typical_pods": 1,
+        "node_distribution": "node-1"
+      },
+      "confidence": 0.9,
+      "context": "Pod status analysis revealed normal resource usage patterns"
+    }
+  ]
+}
+```
+
+#### Knowledge Types Captured
+- **dependency**: Service relationships and dependencies
+- **pattern**: Recurring infrastructure patterns and behaviors  
+- **config**: Configuration insights and settings
+- **baseline**: Performance baselines and normal operating ranges
+
+#### Automatic Extraction Process
+1. **Agent Response Processing**: Each agent response is scanned for JSON blocks containing `infrastructure_knowledge`
+2. **JSON Parsing**: The system extracts and validates the JSON structure
+3. **Knowledge Storage**: Valid knowledge items are stored in the infrastructure memory namespace
+4. **Cross-Session Availability**: Knowledge becomes available for future investigations across all sessions
+
+#### Pattern Recognition Logging
+From recent `agent.log` entries showing the extraction process:
+```log
+2025-08-03 17:45:30,140,p1289365,{hooks.py:71},INFO,Retrieved infrastructure knowledge for user 'Alice' from 1 different sources: Alice: 50 memories
+```
+
+#### Legacy Pattern Recognition (sre_agent/memory/hooks.py)
+The system also maintains fallback regex patterns for basic information extraction:
 - **Email addresses for escalation**: Patterns like `r"escalate to ([^\s,\.]+@[^\s,\.]+)"`
 - **Slack channels for notifications**: Patterns like `r"notify (#[\w-]+)"`
 - **Service dependencies**: Patterns like `r"(\w+) depends on (\w+)"`
 - **Performance baselines and thresholds**: Extracted from metrics agent responses
 - **Error patterns and resolution strategies**: Captured during investigation completion
 
-### Agent Response Processing
+### Enhanced Agent Response Processing and Logging
+
 Every individual agent response triggers automatic memory pattern extraction through the `on_agent_response()` hook. This ensures that valuable information discovered during domain-specific investigations is captured and made available for future use.
+
+#### Comprehensive Response Logging
+The system provides detailed logging of agent responses and memory operations:
+
+```log
+# From agent.log - Message breakdown logging
+2025-08-03 17:45:30,397,p1289365,{agent_nodes.py:347},INFO,Kubernetes Infrastructure Agent - Message breakdown: 1 USER, 1 ASSISTANT, 1 TOOL messages
+2025-08-03 17:45:30,397,p1289365,{agent_nodes.py:349},INFO,Kubernetes Infrastructure Agent - Tools called: k8s-api___get_pod_status
+
+# Memory pattern extraction logging  
+2025-08-03 17:45:30,398,p1289365,{hooks.py:193},INFO,on_agent_response called for agent: Kubernetes Infrastructure Agent, user_id: Alice
+2025-08-03 17:45:30,399,p1289365,{hooks.py:383},INFO,Extracted 5 infrastructure knowledge items from agent response
+```
+
+#### Infrastructure Knowledge Validation
+The system includes validation and error handling for infrastructure knowledge extraction:
+
+```log
+# Successful extraction logging
+2025-08-03 17:45:30,401,p1289365,{hooks.py:387},INFO,Saved infrastructure knowledge: web-app-deployment (baseline) with confidence 0.9
+2025-08-03 17:45:30,402,p1289365,{hooks.py:387},INFO,Saved infrastructure knowledge: database-pod (pattern) with confidence 0.8
+```
+
+#### Automatic Conversation Memory Storage
+All agent interactions are automatically stored in conversation memory with message type breakdown:
+
+```log
+# Conversation storage with tool tracking
+2025-08-03 17:45:30,397,p1289365,{agent_nodes.py:347},INFO,Kubernetes Infrastructure Agent - Message breakdown: 1 USER, 1 ASSISTANT, 1 TOOL messages
+2025-08-03 17:45:30,397,p1289365,{agent_nodes.py:349},INFO,Kubernetes Infrastructure Agent - Tools called: k8s-api___get_pod_status
+2025-08-03 17:45:30,530,p1289365,{agent_nodes.py:375},INFO,Kubernetes Infrastructure Agent: Successfully stored conversation in memory
+```
+
+#### Error Handling and Fallbacks
+The system includes error handling with graceful fallbacks and detailed error logging:
+
+```python
+# From agent_nodes.py - Error handling example
+try:
+    # Extract infrastructure knowledge from JSON
+    knowledge_items = self._extract_infrastructure_knowledge(response_text)
+    logger.info(f"Extracted {len(knowledge_items)} infrastructure knowledge items")
+except Exception as e:
+    logger.warning(f"Infrastructure knowledge extraction failed: {e}")
+    # Falls back to regex patterns for basic extraction
+```
+
+#### Cross-Session Memory Access
+The system provides cross-session memory retrieval for better investigation context:
+
+```log
+# Cross-session infrastructure knowledge retrieval
+2025-08-03 17:45:30,140,p1289365,{hooks.py:71},INFO,Retrieved infrastructure knowledge for user 'Alice' from 1 different sources: Alice: 50 memories
+2025-08-03 17:45:30,140,p1289365,{client.py:245},INFO,Retrieved 50 infrastructure memories for Alice
+```
 
 ### Memory Storage Process
 1. **Pattern Detection**: SRE agent code identifies relevant information in responses
@@ -201,7 +416,7 @@ Every individual agent response triggers automatic memory pattern extraction thr
 
 ## Manual Memory Management
 
-Memory management is handled through the `manage_memories.py` script rather than direct SRE agent commands:
+Memory management is handled through the `manage_memories.py` script:
 
 ### Viewing Memories
 ```bash
@@ -273,6 +488,20 @@ This design ensures:
 - **save_investigation**: Saves investigation summaries to long-term memory  
 - **retrieve_memory**: Retrieves relevant information from long-term memory
 
+### Actor ID Design for Memory Namespace Isolation
+The memory system uses a consistent actor_id strategy to ensure proper namespace isolation:
+
+- **User preferences**: Use user_id as actor_id (e.g., "Alice") for personal namespaces (`/sre/users/Alice/preferences`)
+- **Infrastructure knowledge**: Use agent-specific actor_ids (e.g., "kubernetes-agent") for domain expertise namespaces
+- **Investigation summaries**: Use user_id as actor_id for personal investigation history (`/sre/investigations/Alice`)
+- **Conversation memory**: Use user_id to maintain personal conversation context
+
+This design ensures that:
+- User-specific data remains isolated to individual users
+- Infrastructure knowledge is organized by the agent that discovered it
+- Memory operations route to the correct namespaces automatically
+- Cross-session memory retrieval works reliably
+
 ### Memory Capture Methods
 1. **Supervisor tool calls**: `retrieve_memory` called during planning; `save_investigation` called via planning agent
 2. **Automatic pattern extraction**: Agent responses are processed by `on_agent_response()` hook to extract:
@@ -281,157 +510,6 @@ This design ensures:
    - Calls `_save_*` functions directly (not tool calls)
 3. **Manual configuration**: User preferences loaded via `manage_memories.py update`
 4. **Conversation storage**: All agent responses and tool calls stored as conversation memory
-
-### Memory Operation Logging
-The system provides comprehensive logging of all memory operations for monitoring and debugging:
-
-#### Message Composition Tracking
-Each agent execution logs message composition before storing conversations:
-```
-Performance Metrics Agent - Message breakdown: 1 USER, 1 ASSISTANT, 7 TOOL messages
-Performance Metrics Agent - Tools called: metrics-api___get_performance_metrics, metrics-api___get_resource_metrics, metrics-api___get_error_rates, metrics-api___get_availability_metrics, metrics-api___analyze_trends
-```
-
-#### Pattern Extraction Monitoring
-Automatic pattern extraction is logged for each agent response:
-```
-Performance Metrics Agent - Extracting user preferences from Performance Metrics Agent response for user Alice
-Performance Metrics Agent - Extracting infrastructure knowledge from Performance Metrics Agent
-Performance Metrics Agent - Processed agent response for memory pattern extraction
-```
-
-#### Memory Persistence Verification
-All memory save operations are logged with event IDs for verification:
-```
-Saved preferences event for Alice (event_id: 0000001754188852000#36d4c356)
-Saved investigation summary for incident payment-slowness-20250803 with status ongoing
-Successfully stored conversation batch of 13 messages (event_id: 0000001754188967000#b704c436)
-```
-
-## Memory Flow During Investigation
-
-```
-┌─────────────┐    ┌─────────────────────┐    ┌──────────────────────┐
-│    User     │    │     Supervisor      │    │  Amazon Bedrock      │
-│             │    │      Agent          │    │  AgentCore Memory    │
-└──────┬──────┘    └──────────┬──────────┘    └──────────┬───────────┘
-       │                      │                          │
-       │ Investigation Query  │                          │
-       ├─────────────────────►│                          │
-       │                      │                          │
-       │              ┌───────▼───────┐                  │
-       │              │ on_investigation_start()         │
-       │              │ (memory_hooks) │                 │
-       │              └───────┬───────┘                  │
-       │                      │                          │
-       │                      │ retrieve_memory(preferences) │
-       │                      ├─────────────────────────►│
-       │                      │◄─────────────────────────┤
-       │                      │ User preferences (10)    │
-       │                      │                          │
-       │                      │ retrieve_memory(infrastructure) │
-       │                      ├─────────────────────────►│
-       │                      │◄─────────────────────────┤
-       │                      │ Infrastructure data (50) │
-       │                      │                          │
-       │                      │ retrieve_memory(investigations) │
-       │                      ├─────────────────────────►│
-       │                      │◄─────────────────────────┤
-       │                      │ Past investigations (5)  │
-       │                      │                          │
-       │              ┌───────▼───────┐                  │
-       │              │ Create Investigation Plan        │
-       │              │ (with memory context)           │
-       │              └───────┬───────┘                  │
-       │                      │                          │
-       │                      │ save_investigation()     │
-       │                      │ (planning summary)       │
-       │                      ├─────────────────────────►│
-       │                      │◄─────────────────────────┤
-       │                      │ Event ID                 │
-       │                      │                          │
-       │              ┌───────▼───────┐                  │
-       │              │ Execute Investigation           │
-       │              │ (dispatch to agents)            │
-       │              └───────┬───────┘                  │
-       │                      │                          │
-       │                      ├─► Metrics Agent          │
-       │                      ├─► Logs Agent             │
-       │                      ├─► K8s Agent              │
-       │                      ├─► Runbooks Agent         │
-       │                      │                          │
-       │              ┌───────▼───────┐                  │
-       │              │ Agent Response Processing        │
-       │              │ (in agent_nodes.py)             │
-       │              └───────┬───────┘                  │
-       │                      │                          │
-       │                      │ Store conversation       │
-       │                      │ (agent response + tools) │
-       │                      ├─────────────────────────►│
-       │                      │                          │
-       │              ┌───────▼───────┐                  │
-       │              │ on_agent_response()              │
-       │              │ (pattern recognition)            │
-       │              └───────┬───────┘                  │
-       │                      │                          │
-       │                      │ _save_infrastructure_knowledge() │
-       │                      │ (direct function call)  │
-       │                      ├─────────────────────────►│
-       │                      │                          │
-       │                      │ _save_user_preference()  │
-       │                      │ (direct function call)  │
-       │                      ├─────────────────────────►│
-       │                      │                          │
-       │              ┌───────▼───────┐                  │
-       │              │ on_investigation_complete()      │
-       │              │ (memory_hooks) │                 │
-       │              └───────┬───────┘                  │
-       │                      │                          │
-       │                      │ _save_investigation_summary() │
-       │                      │ (direct function call)  │
-       │                      ├─────────────────────────►│
-       │                      │◄─────────────────────────┤
-       │                      │ Final Event ID           │
-       │                      │                          │
-       │ Final Response       │                          │
-       │◄─────────────────────┤                          │
-       │                      │                          │
-```
-
-### Key Memory Interactions
-
-1. **Investigation Startup** (supervisor.py:299):
-   - Supervisor calls `on_investigation_start()` hook
-   - Hook automatically retrieves user preferences, infrastructure knowledge, and past investigations
-   - Memory context is included in investigation planning
-
-2. **Planning Phase**:
-   - Supervisor's planning agent may call `save_investigation` tool to document planning summary
-   - This is a **tool call** through the LangChain agent framework
-
-3. **Agent Execution**:
-   - Individual agents focus **exclusively** on their domain tools (metrics-api, logs-api, etc.)
-   - Individual agents **do NOT have access** to memory tools (`retrieve_memory` not available)
-   - Each agent response is automatically processed for memory capture
-
-4. **Response Processing** (agent_nodes.py:310-375):
-   - **Message composition logging**: Message breakdown logged (X USER, Y ASSISTANT, Z TOOL messages)  
-   - **Tool execution tracking**: All tool names called during agent execution are logged
-   - Agent responses and tool calls are stored as conversation memory
-   - `on_agent_response()` hook is called to analyze responses using pattern recognition
-   - Pattern extraction identifies:
-     - Escalation contacts (e.g., "escalate to team@company.com")
-     - Notification channels (e.g., "notify #sre-alerts")
-     - Service dependencies (e.g., "web-api depends on postgres-db")
-     - Performance baselines (e.g., "normal response time is 150ms")
-   - Calls `_save_infrastructure_knowledge()` and `_save_user_preference()` **directly** (not tool calls)
-   - Uses regex patterns to extract structured data from agent responses
-   - **Agent identification**: Uses SREConstants for proper agent name matching in infrastructure extraction
-
-5. **Investigation Completion** (supervisor.py:686):
-   - Supervisor calls `on_investigation_complete()` hook  
-   - Hook calls `_save_investigation_summary()` **directly** (not tool call)
-   - Stores final investigation summary with timeline, actions, and findings
 
 ## Integration with Existing Agents
 
@@ -455,28 +533,81 @@ The memory system integrates seamlessly with existing SRE agents:
 
 ## Memory Context in Planning
 
-When creating investigation plans, the supervisor agent incorporates memory context:
+When creating investigation plans, the supervisor agent incorporates memory context from three sources. The planning agent uses the `retrieve_memory` tool to gather relevant context before creating plans.
+
+### Planning Agent Memory Usage Example
+
+Here's a real example from `agent.log` showing how the planning agent retrieves and uses memory context:
+
+```log
+# Memory context retrieval during planning (from agent.log)
+2025-08-03 17:48:56,072,p1290668,{supervisor.py:339},INFO,Retrieved memory context for planning: 10 preferences, 50 knowledge items from 1 agents, 5 past investigations
+
+# Planning agent tool calls to gather context
+2025-08-03 17:49:01,067,p1290668,{tools.py:317},INFO,retrieve_memory called: type=preference, query='user settings communication escalation notification', actor_id=Alice -> Alice, max_results=5
+2025-08-03 17:49:01,067,p1290668,{client.py:236},INFO,Retrieving preferences memories: actor_id=Alice, namespace=/sre/users/Alice/preferences, query='user settings communication escalation notification'
+```
+
+This shows the planning agent:
+1. **Retrieved 10 user preferences** from Alice's preference namespace
+2. **Retrieved 50 infrastructure knowledge items** from accumulated agent investigations  
+3. **Retrieved 5 past investigations** for similar query patterns
+4. **Used retrieve_memory tool** with structured queries to gather context before planning
+
+### Enhanced Planning Prompt with Memory Context
+
+The planning prompt now uses XML structure for better Claude interaction:
+
+```xml
+<memory_retrieval>
+CRITICAL: Before creating the investigation plan, you MUST use the retrieve_memory tool to gather relevant context:
+1. Use retrieve_memory("preference", "user settings communication escalation notification", "{user_id}", 5)
+2. Use retrieve_memory("infrastructure", "[relevant service terms from query]", "sre-agent", 10, null)  
+3. Use retrieve_memory("investigation", "[key terms from user query]", "{user_id}", 5, null)
+</memory_retrieval>
+
+<planning_guidelines>
+After gathering memory context, create a simple, focused investigation plan with 2-3 steps maximum.
+Consider user preferences and past investigation patterns from memory.
+</planning_guidelines>
+
+<response_format>
+MANDATORY: Your response MUST be ONLY valid JSON that matches this exact structure:
+{
+  "steps": ["Step 1 description", "Step 2 description"],
+  "agents_sequence": ["kubernetes_agent", "logs_agent"],
+  "complexity": "simple",
+  "auto_execute": true,
+  "reasoning": "Brief explanation based on retrieved memory context"
+}
+</response_format>
+```
+
+### Memory-Informed Planning Example
 
 ```python
 # Enhanced planning prompt includes:
 """
-User's query: Why is my Redis service down?
+User's query: list kubernetes pods
 
-Relevant User Preferences:
-- Escalation contact: redis-team@company.com
-- Notification channel: #redis-alerts
-
-Relevant Infrastructure Knowledge:
-- Redis typically recovers within 2-3 minutes
-- Common cause: Memory pressure from data ingestion spikes
-- Dependencies: User-service, Session-service, Cart-service
-
-Similar Past Investigations:
-- Incident_20250115: Redis OOM caused by memory leak (Resolution: Restart + config tuning)
-- Incident_20250120: Redis slow response due to disk I/O (Resolution: Moved to SSD)
+Retrieved Memory Context:
+- User Preferences (10 items): Auto-approval for simple Kubernetes plans, technical detail preference
+- Infrastructure Knowledge (50 items): Production namespace layout, pod dependency patterns  
+- Past Investigations (5 items): Previous successful pod listing investigations
 
 Create an investigation plan considering this context...
 """
+```
+
+The planning agent then creates plans like:
+```json
+{
+  "steps": ["Use Kubernetes agent to retrieve current pod status across all namespaces", "Analyze pod health and resource utilization", "Provide structured technical report with pod details"],
+  "agents_sequence": ["kubernetes_agent"],
+  "complexity": "simple", 
+  "auto_execute": true,
+  "reasoning": "Based on user preferences for auto-approval of simple Kubernetes plans and past successful investigations, this is a straightforward pod listing task requiring only the Kubernetes agent"
+}
 ```
 
 ## Benefits
@@ -506,46 +637,6 @@ Create an investigation plan considering this context...
 - Infrastructure knowledge: 30 days (configurable)  
 - Investigation summaries: 60 days (configurable)
 
-### Data Export
-```python
-from sre_agent.memory.export import MemoryExporter
-
-exporter = MemoryExporter(memory_client)
-
-# Export all user preferences
-preferences = await exporter.export_user_preferences("user123", format="json")
-
-# Export investigation history  
-history = await exporter.export_investigation_history(
-    start_date=datetime(2025, 1, 1),
-    end_date=datetime(2025, 1, 31)
-)
-```
-
-### Memory Cleanup
-```python
-# Clear specific user's preferences
-await memory_client.clear_memory("preferences", actor_id="user123")
-
-# Clear all infrastructure knowledge
-await memory_client.clear_memory("infrastructure")
-```
-
-## Architecture
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
-│   Supervisor    │    │   Memory Hooks   │    │  AgentCore Memory   │
-│     Agent       │◄──►│    Provider      │◄──►│     (Bedrock)       │
-└─────────────────┘    └──────────────────┘    └─────────────────────┘
-         ▲                        ▲                         ▲
-         │                        │                         │
-         ▼                        ▼                         ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
-│  Memory Tools   │    │  Memory Client   │    │   Memory Storage    │
-│ (Save/Retrieve) │◄──►│   (SRE-specific) │◄──►│   (AWS Backend)     │
-└─────────────────┘    └──────────────────┘    └─────────────────────┘
-```
 
 ## Setting Up Memory System
 
@@ -587,12 +678,3 @@ uv run python scripts/manage_memories.py list --memory-type preferences
 uv run python scripts/manage_memories.py list --memory-type preferences --actor-id Alice
 ```
 
-## Getting Started
-
-1. **Initialize Memory:** Run `uv run python scripts/manage_memories.py update` during setup
-2. **Set User Context:** Use `USER_ID=username` environment variable for personalized investigations  
-3. **Start Investigating:** Begin investigations - memory capture happens automatically
-4. **Monitor:** Check logs for memory save/retrieve operations and pattern extraction activities
-5. **Query:** Use natural language to query accumulated memories
-
-The memory system requires no changes to existing workflows - it operates transparently while building knowledge that makes future investigations more effective.

@@ -347,10 +347,10 @@ class SupervisorAgent:
 
         # Enhanced planning prompt that instructs the agent to use memory tools
         planning_instructions = _read_planning_prompt()
-        formatted_planning_instructions = planning_instructions.format(
-            user_id=user_id,
-            session_id=session_id
-        )
+        # Replace placeholders manually to avoid issues with JSON braces in the prompt
+        formatted_planning_instructions = planning_instructions.replace("{user_id}", user_id)
+        if session_id:
+            formatted_planning_instructions = formatted_planning_instructions.replace("{session_id}", session_id)
         
         planning_prompt = f"""{self.system_prompt}
 
@@ -378,41 +378,67 @@ User's query: {current_query}
                     final_message = plan_response["messages"][-1]
                     plan_text = final_message.content
                     
-                    # Debug: Log the actual planning agent response
-                    logger.debug(f"Planning agent response content: {plan_text}")
+                    # Always log the complete planning agent response
+                    logger.info(f"Planning agent original response: {plan_text}")
                     
                     # Try to extract JSON from the response
                     import re
                     
-                    # Look for JSON in the response
-                    json_match = re.search(r'\{.*\}', plan_text, re.DOTALL)
-                    if json_match:
-                        json_content = json_match.group()
-                        logger.debug(f"Extracted JSON content: {json_content}")
+                    # Look for JSON in the response - try multiple patterns
+                    json_patterns = [
+                        r'\{[^{}]*"steps"[^{}]*"agents_sequence"[^{}]*"complexity"[^{}]*"auto_execute"[^{}]*"reasoning"[^{}]*\}',  # Specific pattern for our structure
+                        r'\{.*?"steps".*?\}',  # Broader pattern
+                        r'\{.*\}',  # Most general pattern
+                    ]
+                    
+                    json_content = None
+                    for pattern in json_patterns:
+                        json_match = re.search(pattern, plan_text, re.DOTALL)
+                        if json_match:
+                            json_content = json_match.group()
+                            logger.info(f"Extracted JSON content using pattern: {json_content}")
+                            break
+                    
+                    if json_content:
                         try:
+                            # Clean up the JSON content
+                            json_content = json_content.strip()
                             plan_json = json.loads(json_content)
+                            logger.info(f"Successfully parsed JSON: {plan_json}")
                             plan = InvestigationPlan(**plan_json)
-                            logger.info("Successfully parsed JSON investigation plan")
-                        except (json.JSONDecodeError, Exception) as e:
-                            logger.warning(f"Failed to parse extracted JSON: {e}")
+                            logger.info("Successfully created InvestigationPlan from JSON")
+                        except json.JSONDecodeError as e:
+                            logger.error(f"JSON decode error: {e}")
+                            logger.error(f"Failed JSON content: {json_content}")
                             logger.warning("Could not parse JSON from planning agent response, using fallback")
                             plan = InvestigationPlan(
                                 steps=["Investigate the reported issue", "Analyze findings and provide recommendations"],
                                 agents_sequence=["metrics_agent", "logs_agent"],
                                 complexity="simple",
                                 auto_execute=True,
-                                reasoning="Default investigation plan due to parsing error"
+                                reasoning="Default investigation plan due to JSON parsing error"
+                            )
+                        except Exception as e:
+                            logger.error(f"Error creating InvestigationPlan: {e}")
+                            logger.error(f"Plan JSON was: {plan_json}")
+                            logger.warning("Could not create InvestigationPlan from parsed JSON, using fallback")
+                            plan = InvestigationPlan(
+                                steps=["Investigate the reported issue", "Analyze findings and provide recommendations"],
+                                agents_sequence=["metrics_agent", "logs_agent"],
+                                complexity="simple",
+                                auto_execute=True,
+                                reasoning="Default investigation plan due to validation error"
                             )
                     else:
                         # Fallback to basic plan if JSON parsing fails
                         logger.warning("Could not find JSON pattern in planning agent response, using fallback")
-                        logger.warning(f"Response content was: {plan_text[:500]}...")
+                        logger.warning(f"Response content was: {plan_text}")
                         plan = InvestigationPlan(
                             steps=["Investigate the reported issue", "Analyze findings and provide recommendations"],
                             agents_sequence=["metrics_agent", "logs_agent"],
                             complexity="simple",
                             auto_execute=True,
-                            reasoning="Default investigation plan due to parsing error"
+                            reasoning="Default investigation plan due to no JSON found"
                         )
                 else:
                     raise ValueError("No response from planning agent")

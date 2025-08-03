@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from datetime import datetime
@@ -158,6 +159,7 @@ class MemoryHookProvider:
                 self._extract_infrastructure_knowledge(
                     response_text,
                     agent_name,
+                    user_id,
                     state
                 )
             else:
@@ -310,97 +312,94 @@ class MemoryHookProvider:
         self,
         response_text: str,
         agent_name: str,
+        user_id: str,
         state: Dict[str, Any]
     ):
-        """Extract infrastructure knowledge from agent responses."""
+        """Extract infrastructure knowledge from agent responses using JSON structure."""
         logger.info(f"Extracting infrastructure knowledge from {agent_name} agent response")
 
-        # Extract service dependencies
-        dependency_patterns = [
-            r"(\w+) depends on (\w+)",
-            r"(\w+) requires (\w+)",
-            r"(\w+) connects to (\w+)"
-        ]
+        # Look for JSON infrastructure knowledge blocks in the response
 
-        dependencies_found = 0
-        for pattern in dependency_patterns:
-            matches = re.finditer(pattern, response_text, re.IGNORECASE)
-            for match in matches:
-                service = match.group(1)
-                dependency = match.group(2)
-                logger.info(f"Found dependency pattern: '{match.group(0)}' -> {service} depends on {dependency}")
+        # Find JSON blocks containing infrastructure_knowledge
+        json_pattern = r'```json\s*\n\s*(\{[^`]*"infrastructure_knowledge"[^`]*\})\s*\n\s*```'
+        matches = re.finditer(json_pattern, response_text, re.IGNORECASE | re.DOTALL)
 
-                knowledge = InfrastructureKnowledge(
-                    service_name=service,
-                    knowledge_type="dependency",
-                    knowledge_data={
-                        "depends_on": dependency,
-                        "discovered_by": agent_name
-                    },
-                    confidence=0.7
-                )
+        knowledge_extracted = 0
+        
+        for match in matches:
+            json_content = match.group(1)
+            logger.info(f"Found infrastructure knowledge JSON block: {json_content[:400]}...")
+            
+            try:
+                # Parse the JSON
+                data = json.loads(json_content)
+                infrastructure_knowledge_list = data.get("infrastructure_knowledge", [])
+                
+                if not infrastructure_knowledge_list:
+                    logger.info("No infrastructure knowledge items found in JSON block")
+                    continue
+                
+                for knowledge_item in infrastructure_knowledge_list:
+                    try:
+                        # Validate required fields
+                        service_name = knowledge_item.get("service_name")
+                        knowledge_type = knowledge_item.get("knowledge_type")
+                        knowledge_data = knowledge_item.get("knowledge_data", {})
+                        confidence = knowledge_item.get("confidence", 0.8)
+                        context = knowledge_item.get("context", f"Discovered by {agent_name} agent")
+                        
+                        if not service_name or not knowledge_type:
+                            logger.warning(f"Skipping invalid knowledge item: missing service_name or knowledge_type")
+                            continue
+                            
+                        # Validate knowledge_type
+                        valid_types = ["dependency", "pattern", "config", "baseline"]
+                        if knowledge_type not in valid_types:
+                            logger.warning(f"Invalid knowledge_type '{knowledge_type}', must be one of: {valid_types}")
+                            continue
+                        
+                        # Add agent metadata to knowledge data
+                        knowledge_data["discovered_by"] = agent_name
+                        
+                        # Create InfrastructureKnowledge object with explicit timestamp
+                        knowledge = InfrastructureKnowledge(
+                            service_name=service_name,
+                            knowledge_type=knowledge_type,
+                            knowledge_data=knowledge_data,
+                            confidence=float(confidence),
+                            context=context,
+                            timestamp=datetime.utcnow()  # Explicit timestamp when knowledge was extracted
+                        )
+                        
+                        # Save to memory using user_id as actor_id (not service_name)
+                        success = _save_infrastructure_knowledge(
+                            self.memory_client,
+                            user_id,
+                            knowledge,
+                            state.get("session_id")
+                        )
+                        
+                        if success:
+                            knowledge_extracted += 1
+                            logger.info(f"Captured {knowledge_type} knowledge for {service_name}: {knowledge_data}")
+                        else:
+                            logger.warning(f"Failed to save {knowledge_type} knowledge for {service_name}")
+                            
+                    except Exception as e:
+                        logger.error(f"Error processing knowledge item: {e}")
+                        continue
+                        
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse infrastructure knowledge JSON: {e}")
+                continue
+            except Exception as e:
+                logger.error(f"Error extracting infrastructure knowledge: {e}")
+                continue
 
-                success = _save_infrastructure_knowledge(
-                    self.memory_client,
-                    service,
-                    knowledge,
-                    state.get("session_id")
-                )
-
-                if success:
-                    dependencies_found += 1
-                    logger.info(f"Captured dependency: {service} -> {dependency}")
-                else:
-                    logger.warning(f"Failed to save dependency: {service} -> {dependency}")
-
-        if dependencies_found == 0:
-            logger.info(f"No dependency patterns found in {agent_name} response")
-
-        # Extract performance baselines for metrics agent
-        if agent_name == "metrics":
-            logger.info("Extracting performance baselines from metrics agent")
-            baseline_patterns = [
-                r"baseline (\w+) is ([0-9\.]+)",
-                r"normal (\w+) is ([0-9\.]+)",
-                r"typical (\w+) ranges from ([0-9\.]+) to ([0-9\.]+)"
-            ]
-
-            baselines_found = 0
-            for pattern in baseline_patterns:
-                matches = re.finditer(pattern, response_text, re.IGNORECASE)
-                for match in matches:
-                    metric = match.group(1)
-                    value = match.group(2)
-                    logger.info(f"Found baseline pattern: '{match.group(0)}' -> {metric} = {value}")
-
-                    knowledge = InfrastructureKnowledge(
-                        service_name="system",
-                        knowledge_type="baseline",
-                        knowledge_data={
-                            "metric": metric,
-                            "value": value,
-                            "discovered_by": agent_name
-                        },
-                        confidence=0.8
-                    )
-
-                    success = _save_infrastructure_knowledge(
-                        self.memory_client,
-                        "system",
-                        knowledge,
-                        state.get("session_id")
-                    )
-
-                    if success:
-                        baselines_found += 1
-                        logger.info(f"Captured baseline: {metric} = {value}")
-                    else:
-                        logger.warning(f"Failed to save baseline: {metric} = {value}")
-
-            if baselines_found == 0:
-                logger.info("No baseline patterns found in metrics agent response")
-
-        logger.info(f"Infrastructure knowledge extraction complete for {agent_name}: {dependencies_found} dependencies found")
+        if knowledge_extracted == 0:
+            logger.info(f"No infrastructure knowledge JSON blocks found in {agent_name} response")
+        else:
+            logger.info(f"Infrastructure knowledge extraction complete for {agent_name}: {knowledge_extracted} knowledge items extracted")
 
     def _extract_timeline(
         self,
