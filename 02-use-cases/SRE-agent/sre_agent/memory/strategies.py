@@ -323,7 +323,7 @@ def _save_investigation_summary(
             session_id=session_id
         )
         if success:
-            logger.info(f"Saved investigation summary for incident {incident_id} with status {summary.resolution_status}")
+            logger.info(f"Saved investigation summary for actor_id={actor_id}, incident {incident_id} with status {summary.resolution_status}")
         else:
             logger.warning(f"Failed to save investigation summary for incident {incident_id}")
         return success

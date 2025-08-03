@@ -22,6 +22,8 @@ The SRE Agent is a multi-agent system for Site Reliability Engineers that helps 
 
 - **Multi-Agent Orchestration**: Specialized agents collaborate on infrastructure investigations with real-time streaming
 - **Conversational Interface**: Single-query investigations and interactive multi-turn conversations with context preservation
+- **Long-term Memory Integration**: Amazon Bedrock Agent Memory provides persistent user preferences and infrastructure knowledge across sessions
+- **User Personalization**: Tailored reports and escalation procedures based on individual user preferences and roles
 - **MCP-based Integration**: AgentCore Gateway provides secure API access with authentication and health monitoring
 - **Specialized Agents**: Four domain-specific agents for Kubernetes, logs, metrics, and operational procedures
 - **Documentation and Reporting**: Markdown reports generated for each investigation with audit trail
@@ -39,6 +41,7 @@ For comprehensive information about the SRE Agent system, please refer to the fo
 - **[Verification](docs/verification.md)** - Ground truth verification and report validation
 - **[Development](docs/development.md)** - Testing, code quality, and contribution guidelines
 - **[Deployment Guide](docs/deployment-guide.md)** - Complete deployment guide for Amazon Bedrock AgentCore Runtime
+- **[Memory System](docs/memory-system.md)** - Long-term memory integration, user personalization, and cross-session learning
 
 ## Prerequisites
 
@@ -101,9 +104,35 @@ sed -i "s|uri: \".*\"|uri: \"$GATEWAY_URI\"|" sre_agent/config/agent_config.yaml
 # Copy the gateway access token to your .env file
 sed -i '/^GATEWAY_ACCESS_TOKEN=/d' sre_agent/.env
 echo "GATEWAY_ACCESS_TOKEN=$(cat gateway/.access_token)" >> sre_agent/.env
+
+# Initialize memory system and add user preferences
+uv run python scripts/manage_memories.py update
 ```
 
 ## Execution instructions
+
+### Memory-Enhanced Personalized Investigations
+
+The SRE Agent includes a sophisticated memory system that personalizes investigations based on user preferences. The system comes preconfigured with two user personas in [`scripts/user_config.yaml`](scripts/user_config.yaml):
+
+- **Alice**: Technical detailed investigations with comprehensive analysis and team alerts
+- **Carol**: Executive-focused investigations with business impact analysis and strategic alerts
+
+When running investigations with different user IDs, the agent produces similar technical findings but presents them according to each user's preferences:
+
+```bash
+# Alice's detailed technical investigation
+USER_ID=Alice sre-agent --prompt "API response times have degraded 3x in the last hour" --provider bedrock
+
+# Carol's executive-focused investigation  
+USER_ID=Carol sre-agent --prompt "API response times have degraded 3x in the last hour" --provider bedrock
+```
+
+Both commands will identify identical technical issues but present them differently:
+- **Alice** receives detailed technical analysis with step-by-step troubleshooting and team notifications
+- **Carol** receives executive summaries focused on business impact with rapid escalation timelines
+
+For a detailed comparison showing how the memory system personalizes identical incidents, see: [**Memory System Report Comparison**](docs/examples/Memory_System_Analysis_User_Personalization_20250802_162648.md)
 
 ### Single Query Mode
 ```bash

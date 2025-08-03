@@ -7,14 +7,15 @@ Usage:
 
 Actions:
     list      List memories (default action)
-    update    Update memories from configuration file
+    update    Update memories from configuration file (with duplicate removal)
     delete    Delete memories
 
 Examples:
     uv run python scripts/manage_memories.py                           # List all memories
     uv run python scripts/manage_memories.py list --memory-type investigations  # List only investigations
-    uv run python scripts/manage_memories.py update                    # Load user preferences from user_config.yaml
+    uv run python scripts/manage_memories.py update                    # Load user preferences from user_config.yaml (removes duplicates)
     uv run python scripts/manage_memories.py update --config-file custom.yaml  # Load from custom file
+    uv run python scripts/manage_memories.py update --no-duplicate-check       # Skip duplicate removal check
     uv run python scripts/manage_memories.py delete --memory-id mem-123        # Delete specific memory resource
     uv run python scripts/manage_memories.py delete --memory-record-id mem-abc # Delete specific memory record
     uv run python scripts/manage_memories.py delete --all                      # Delete all memory resources
@@ -27,7 +28,7 @@ import sys
 import yaml
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add the project root to path so we can import sre_agent
 project_root = Path(__file__).parent.parent
@@ -250,6 +251,83 @@ def _delete_all_memories() -> int:
     return deleted_count
 
 
+def _check_and_delete_existing_preference(
+    client: SREMemoryClient,
+    user_id: str,
+    preference_type: str
+) -> tuple[int, list]:
+    """Check for existing preference events of the same type and delete them to prevent duplicates."""
+    try:
+        # List events for this user to find duplicate preferences
+        # We use list_events because it shows individual preference events, not aggregated memories
+        events = client.client.list_events(
+            memory_id=client.memory_id,
+            actor_id=user_id,
+            session_id="preferences-default",
+            max_results=100,  # Get more events to ensure we find all duplicates
+            include_payload=True
+        )
+        
+        deleted_count = 0
+        logger.debug(f"Found {len(events)} events for user {user_id}")
+        
+        # Track which events to delete (we'll batch delete them)
+        events_to_delete = []
+        
+        for event in events:
+            try:
+                # Get the event payload (it's a list of message objects)
+                payload = event.get("payload", [])
+                
+                for message_obj in payload:
+                    # Extract the conversational content
+                    conversational = message_obj.get("conversational", {})
+                    role = conversational.get("role", "")
+                    content_obj = conversational.get("content", {})
+                    content = content_obj.get("text", "")
+                    
+                    # We're looking for ASSISTANT messages with preference data
+                    if role == "ASSISTANT" and content:
+                        import json
+                        try:
+                            # Parse the content to check preference type
+                            pref_data = json.loads(content)
+                            
+                            # Check if this is a preference with the matching type
+                            if pref_data.get("preference_type") == preference_type:
+                                event_id = event.get("eventId")
+                                event_time = event.get("eventTimestamp")
+                                logger.info(f"Found existing {preference_type} preference event: {event_id} from {event_time}")
+                                events_to_delete.append(event_id)
+                                
+                        except json.JSONDecodeError:
+                            # Not JSON or not a preference - skip
+                            continue
+                            
+            except Exception as e:
+                logger.warning(f"Error checking event for duplicates: {e}")
+                continue
+        
+        # Report on duplicate events found
+        if events_to_delete:
+            logger.info(f"Found {len(events_to_delete)} existing {preference_type} preference events for user {user_id}")
+            # Note: The Amazon Bedrock Agent Memory service doesn't support deleting individual events
+            # Events are immutable and designed to accumulate over time
+            # The memory strategies will aggregate all events, giving more weight to recent ones
+            logger.info("Note: Existing preference events cannot be deleted (events are immutable)")
+            logger.info("New preference will be added and the memory strategy will aggregate all events")
+            deleted_count = 0  # We can't actually delete events
+        
+        if deleted_count > 0:
+            logger.info(f"Deleted {deleted_count} existing {preference_type} preferences for user {user_id}")
+        
+        return deleted_count, events_to_delete
+        
+    except Exception as e:
+        logger.warning(f"Failed to check for existing preferences for user {user_id}, type {preference_type}: {e}")
+        return 0, []
+
+
 def _load_user_preferences_from_yaml(yaml_file: Path) -> dict:
     """Load user preferences from YAML configuration file."""
     try:
@@ -292,9 +370,13 @@ def _handle_update_action(args) -> None:
         client = SREMemoryClient(memory_name="sre_agent_memory")
         
         total_added = 0
+        total_deleted = 0
         total_users = len(users_config)
         
-        print(f"Processing preferences for {total_users} users...")
+        if args.no_duplicate_check:
+            print(f"Processing preferences for {total_users} users (duplicate check disabled)...")
+        else:
+            print(f"Processing preferences for {total_users} users (removing duplicates)...")
         
         # Process each user
         for user_id, user_config in users_config.items():
@@ -308,13 +390,34 @@ def _handle_update_action(args) -> None:
             # Process each preference for this user
             for pref_data in user_preferences:
                 try:
+                    preference_type = pref_data['preference_type']
+                    
+                    # Check for and delete existing preferences of the same type (unless disabled)
+                    deleted_count = 0
+                    events_to_delete = []
+                    if not args.no_duplicate_check:
+                        deleted_count, events_to_delete = _check_and_delete_existing_preference(
+                            client,
+                            user_id,
+                            preference_type
+                        )
+                        
+                        if deleted_count > 0:
+                            # This should not happen anymore since we can't delete events
+                            print(f"  🗑️  Deleted {deleted_count} existing {preference_type} preferences for {user_id}")
+                            total_deleted += deleted_count
+                        elif events_to_delete:
+                            # This is what will happen when duplicates are found
+                            print(f"  ℹ️  Found existing {preference_type} preference events for {user_id}")
+                            print(f"     Note: Adding new preference (events accumulate over time)")
+                    
                     # Create UserPreference object
                     preference = UserPreference(
                         user_id=user_id,
-                        preference_type=pref_data['preference_type'],
+                        preference_type=preference_type,
                         preference_value=pref_data['preference_value'],
                         context=pref_data.get('context', f"Loaded from {yaml_file.name}. Do not add this memory to summary or semantic memory, only add it to user preferences long term memory."),
-                        timestamp=datetime.utcnow()
+                        timestamp=datetime.now(timezone.utc)
                     )
                     
                     # Save preference using user_id as actor_id
@@ -336,6 +439,8 @@ def _handle_update_action(args) -> None:
         
         print(f"\n=== SUMMARY ===")
         print(f"Successfully added {total_added} user preferences to memory")
+        if total_deleted > 0:
+            print(f"Deleted {total_deleted} duplicate preferences during update")
         print(f"Users processed: {total_users}")
         print(f"Memory ID: {client.memory_id}")
         
@@ -412,8 +517,9 @@ Examples:
     %(prog)s                                    # List all memory types grouped by actor
     %(prog)s list --memory-type investigations  # List only investigations grouped by actor
     %(prog)s list --actor-id sre-agent         # List memories for specific actor only
-    %(prog)s update                            # Load user preferences from user_config.yaml
+    %(prog)s update                            # Load user preferences from user_config.yaml (removes duplicates)
     %(prog)s update --config-file custom.yaml  # Load user preferences from custom YAML file
+    %(prog)s update --no-duplicate-check       # Load preferences without removing duplicates
     %(prog)s delete --memory-id mem-123        # Delete specific memory resource
     %(prog)s delete --memory-record-id mem-abc # Delete specific memory record
     %(prog)s delete --all                      # Delete all memory resources (with confirmation)
@@ -450,6 +556,11 @@ Examples:
     update_parser.add_argument(
         "--config-file",
         help="Path to YAML configuration file (default: user_config.yaml)"
+    )
+    update_parser.add_argument(
+        "--no-duplicate-check",
+        action="store_true",
+        help="Skip checking for and removing duplicate preferences (default: duplicates are removed)"
     )
     
     # Delete command

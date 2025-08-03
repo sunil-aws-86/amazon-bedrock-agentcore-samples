@@ -145,8 +145,16 @@ class MemoryHookProvider:
                 logger.info(f"Extracted {pref_count_after - pref_count_before} new user preferences from {agent_name} response")
 
             # Extract infrastructure knowledge
-            if agent_name in ["kubernetes", "metrics", "logs"]:
-                logger.info(f"Extracting infrastructure knowledge from {agent_name} agent")
+            # Check if this agent should extract infrastructure knowledge
+            # Match against display names from constants
+            infrastructure_agents = [
+                SREConstants.agents.agents["kubernetes"].display_name,
+                SREConstants.agents.agents["metrics"].display_name,
+                SREConstants.agents.agents["logs"].display_name
+            ]
+            
+            if agent_name in infrastructure_agents:
+                logger.info(f"Extracting infrastructure knowledge from {agent_name}")
                 self._extract_infrastructure_knowledge(
                     response_text,
                     agent_name,

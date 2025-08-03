@@ -317,11 +317,25 @@ class BaseAgentNode:
                     ]
                     
                     # Also capture tool execution results as TOOL messages
+                    tool_names = []
                     for msg in all_messages:
                         if hasattr(msg, "tool_call_id") and hasattr(msg, "content"):
                             tool_content = str(msg.content)[:500]  # Limit tool message length
                             tool_name = getattr(msg, "name", "unknown")
+                            tool_names.append(tool_name)
                             messages_to_store.append((f"[Agent: {self.name}] [Tool: {tool_name}]\n{tool_content}", "TOOL"))
+                    
+                    # Count message types
+                    user_count = len([m for m in messages_to_store if m[1] == "USER"])
+                    assistant_count = len([m for m in messages_to_store if m[1] == "ASSISTANT"])
+                    tool_count = len([m for m in messages_to_store if m[1] == "TOOL"])
+                    
+                    # Log message breakdown before storing
+                    logger.info(f"{self.name} - Message breakdown: {user_count} USER, {assistant_count} ASSISTANT, {tool_count} TOOL messages")
+                    if tool_names:
+                        logger.info(f"{self.name} - Tools called: {', '.join(tool_names)}")
+                    else:
+                        logger.info(f"{self.name} - No tools called")
                     
                     # Store the conversation batch
                     success = conversation_manager.store_conversation_batch(
@@ -338,6 +352,41 @@ class BaseAgentNode:
                         
                 except Exception as e:
                     logger.error(f"{self.name} - Error storing conversation messages: {e}", exc_info=True)
+            
+            # Process agent response for pattern extraction and memory capture
+            if user_id and agent_response:
+                try:
+                    # Check if memory hooks are available through the memory client
+                    from .memory.hooks import MemoryHookProvider
+                    
+                    # Use the SREMemoryClient that's already imported at the top
+                    memory_client = SREMemoryClient()
+                    memory_hooks = MemoryHookProvider(memory_client)
+                    
+                    # Create response object for hooks
+                    response_obj = {
+                        "content": agent_response,
+                        "tool_calls": [
+                            {
+                                "name": getattr(msg, "name", "unknown"),
+                                "content": str(getattr(msg, "content", ""))
+                            }
+                            for msg in all_messages
+                            if hasattr(msg, "tool_call_id")
+                        ]
+                    }
+                    
+                    # Call on_agent_response hook to extract patterns
+                    memory_hooks.on_agent_response(
+                        agent_name=self.name,
+                        response=response_obj,
+                        state=state
+                    )
+                    
+                    logger.info(f"{self.name} - Processed agent response for memory pattern extraction")
+                    
+                except Exception as e:
+                    logger.warning(f"{self.name} - Failed to process agent response for memory patterns: {e}")
 
             # Update state with streaming info
             return {
