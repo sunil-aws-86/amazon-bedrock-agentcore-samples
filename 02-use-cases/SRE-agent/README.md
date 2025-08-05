@@ -229,7 +229,66 @@ The AgentCore Runtime deployment supports:
 
 For complete step-by-step instructions including local testing, container building, and production deployment, see the **[Deployment Guide](docs/deployment-guide.md)**.
 
+## Maintenance and Operations
+
+### Restarting Backend Servers and Refreshing Access Token
+
+To maintain connectivity with the Amazon Bedrock AgentCore Gateway, you need to periodically restart backend servers and refresh the access token. Run the gateway configuration script:
+
+```bash
+./scripts/configure_gateway.sh
+```
+
+**What this script does:**
+- **Stops running backend servers** to ensure clean restart
+- **Generates a new access token** for AgentCore Gateway authentication
+- **Gets the EC2 instance private IP** for proper SSL binding
+- **Starts backend servers** with SSL certificates (HTTPS) or HTTP fallback
+- **Updates gateway URI** in the agent configuration from `gateway/.gateway_uri`
+- **Updates access token** in the `.env` file for agent authentication
+
+**Important:** You must run this script **every 24 hours** because the access token expires after 24 hours. If you don't refresh the token:
+- The SRE agent will lose connection to the AgentCore gateway
+- No MCP tools will be available (Kubernetes, logs, metrics, runbooks APIs)
+- Investigations will fail as agents cannot access backend services
+
+For more details, see the [configure_gateway.sh](scripts/configure_gateway.sh) script.
+
+### Troubleshooting Gateway Connection Issues
+
+If you encounter "gateway connection failed" or "MCP tools unavailable" errors:
+1. Check if the access token has expired (24-hour limit)
+2. Run `./scripts/configure_gateway.sh` to refresh authentication
+3. Verify backend servers are running with `ps aux | grep python`
+4. Check SSL certificate validity if using HTTPS
+
 ## Clean up instructions
+
+### Complete AWS Resource Cleanup
+
+For complete cleanup of all AWS resources (Gateway, Runtime, and local files):
+
+```bash
+# Complete cleanup - deletes AWS resources and local files
+./scripts/cleanup.sh
+
+# Or with custom names
+./scripts/cleanup.sh --gateway-name my-gateway --runtime-name my-runtime
+
+# Force cleanup without confirmation prompts
+./scripts/cleanup.sh --force
+```
+
+This script will:
+- Stop backend servers
+- Delete the AgentCore Gateway and all its targets
+- Delete memory resources
+- Delete the AgentCore Runtime
+- Remove local configuration files and virtual environment
+
+### Manual Local Cleanup Only
+
+If you only want to clean up local files without touching AWS resources:
 
 ```bash
 # Stop all demo servers
