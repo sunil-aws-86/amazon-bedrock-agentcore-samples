@@ -7,28 +7,25 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
-from langchain_anthropic import ChatAnthropic
-from langchain_aws import ChatBedrock
-
-from .llm_utils import create_llm_with_error_handling
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.prebuilt import create_react_agent
 from pydantic import BaseModel, Field, field_validator
 
 from .agent_state import AgentState
 from .constants import SREConstants
+from .llm_utils import create_llm_with_error_handling
+from .memory import create_conversation_memory_manager
+from .memory.client import SREMemoryClient
+from .memory.config import _load_memory_config
+from .memory.hooks import MemoryHookProvider
+from .memory.tools import create_memory_tools
 from .output_formatter import create_formatter
 from .prompt_loader import prompt_loader
-from .memory.client import SREMemoryClient
-from .memory.hooks import MemoryHookProvider
-from .memory.config import _load_memory_config
-from .memory import create_conversation_memory_manager
-from .memory.tools import create_memory_tools
 
 
 def _get_user_from_env() -> str:
     """Get user_id from environment variable.
-    
+
     Returns:
         user_id from USER_ID environment variable or default
     """
@@ -39,16 +36,18 @@ def _get_user_from_env() -> str:
     else:
         # Fallback to default user_id
         default_user_id = SREConstants.agents.default_user_id
-        logger.warning(f"USER_ID not set in environment, using default: {default_user_id}")
+        logger.warning(
+            f"USER_ID not set in environment, using default: {default_user_id}"
+        )
         return default_user_id
 
 
 def _get_session_from_env(mode: str) -> str:
     """Get session_id from environment variable or generate one.
-    
+
     Args:
         mode: "interactive" or "prompt" for auto-generation prefix
-    
+
     Returns:
         session_id from SESSION_ID environment variable or auto-generated
     """
@@ -59,7 +58,9 @@ def _get_session_from_env(mode: str) -> str:
     else:
         # Auto-generate session_id
         auto_session_id = f"{mode}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        logger.info(f"SESSION_ID not set in environment, auto-generated: {auto_session_id}")
+        logger.info(
+            f"SESSION_ID not set in environment, auto-generated: {auto_session_id}"
+        )
         return auto_session_id
 
 
@@ -94,25 +95,27 @@ class InvestigationPlan(BaseModel):
     steps: List[str] = Field(
         description="List of 3-5 investigation steps to be executed"
     )
-    
-    @field_validator('steps', mode='before')
+
+    @field_validator("steps", mode="before")
     @classmethod
     def validate_steps(cls, v):
         """Convert string steps to list if needed."""
         if isinstance(v, str):
             # Split by numbered lines and clean up
             import re
-            lines = v.strip().split('\n')
+
+            lines = v.strip().split("\n")
             steps = []
             for line in lines:
                 line = line.strip()
                 if line:
                     # Remove numbering like "1.", "2.", etc.
-                    clean_line = re.sub(r'^\d+\.\s*', '', line)
+                    clean_line = re.sub(r"^\d+\.\s*", "", line)
                     if clean_line:
                         steps.append(clean_line)
             return steps
         return v
+
     agents_sequence: List[str] = Field(
         description="Sequence of agents to invoke (kubernetes_agent, logs_agent, metrics_agent, runbooks_agent)"
     )
@@ -130,9 +133,9 @@ class InvestigationPlan(BaseModel):
 class RouteDecision(BaseModel):
     """Decision made by supervisor for routing."""
 
-    next: Literal["kubernetes_agent", "logs_agent", "metrics_agent", "runbooks_agent", "FINISH"] = Field(
-        description="The next agent to route to, or FINISH if done"
-    )
+    next: Literal[
+        "kubernetes_agent", "logs_agent", "metrics_agent", "runbooks_agent", "FINISH"
+    ] = Field(description="The next agent to route to, or FINISH if done")
     reasoning: str = Field(
         description="Brief explanation of why this routing decision was made"
     )
@@ -166,7 +169,9 @@ def _read_supervisor_prompt() -> str:
         logger.warning(f"Could not read supervisor fallback prompt file: {e}")
 
     # Final hardcoded fallback if files not found
-    return "You are the Supervisor Agent orchestrating a team of specialized SRE agents."
+    return (
+        "You are the Supervisor Agent orchestrating a team of specialized SRE agents."
+    )
 
 
 def _read_planning_prompt() -> str:
@@ -196,30 +201,38 @@ Create the plan in JSON format with these fields:
 class SupervisorAgent:
     """Supervisor agent that orchestrates other agents with memory capabilities."""
 
-    def __init__(self, llm_provider: str = "bedrock", force_delete_memory: bool = False, **llm_kwargs):
-
+    def __init__(
+        self,
+        llm_provider: str = "bedrock",
+        force_delete_memory: bool = False,
+        **llm_kwargs,
+    ):
         self.llm_provider = llm_provider
         self.llm = self._create_llm(**llm_kwargs)
         self.system_prompt = _read_supervisor_prompt()
         self.formatter = create_formatter(llm_provider=llm_provider)
-        
+
         # Initialize memory system
         self.memory_config = _load_memory_config()
         if self.memory_config.enabled:
             self.memory_client = SREMemoryClient(
                 memory_name=self.memory_config.memory_name,
                 region=self.memory_config.region,
-                force_delete=force_delete_memory
+                force_delete=force_delete_memory,
             )
             self.memory_hooks = MemoryHookProvider(self.memory_client)
-            self.conversation_manager = create_conversation_memory_manager(self.memory_client)
-            
+            self.conversation_manager = create_conversation_memory_manager(
+                self.memory_client
+            )
+
             # Create memory tools for supervisor agent
             self.memory_tools = create_memory_tools(self.memory_client)
-            
+
             # Create react agent with memory tools for supervised planning
             self.planning_agent = create_react_agent(self.llm, self.memory_tools)
-            logger.info(f"Memory system initialized for supervisor agent with {len(self.memory_tools)} memory tools")
+            logger.info(
+                f"Memory system initialized for supervisor agent with {len(self.memory_tools)} memory tools"
+            )
         else:
             self.memory_client = None
             self.memory_hooks = None
@@ -233,35 +246,37 @@ class SupervisorAgent:
         return create_llm_with_error_handling(self.llm_provider, **kwargs)
 
     async def retrieve_memory(
-        self, 
-        memory_type: str, 
-        query: str, 
-        actor_id: str, 
+        self,
+        memory_type: str,
+        query: str,
+        actor_id: str,
         max_results: int = 5,
-        session_id: Optional[str] = None
+        session_id: Optional[str] = None,
     ) -> str:
         """Retrieve information from long-term memory using the retrieve_memory tool."""
         if not self.memory_tools:
             return "Memory system not enabled"
-        
+
         # Find the retrieve_memory tool
         retrieve_tool = None
         for tool in self.memory_tools:
             if tool.name == "retrieve_memory":
                 retrieve_tool = tool
                 break
-        
+
         if not retrieve_tool:
             return "Retrieve memory tool not available"
-        
+
         try:
-            logger.info(f"Supervisor using retrieve_memory tool: type={memory_type}, query='{query}', actor_id={actor_id}")
+            logger.info(
+                f"Supervisor using retrieve_memory tool: type={memory_type}, query='{query}', actor_id={actor_id}"
+            )
             result = retrieve_tool._run(
                 memory_type=memory_type,
                 query=query,
                 actor_id=actor_id,
                 max_results=max_results,
-                session_id=session_id
+                session_id=session_id,
             )
             return result
         except Exception as e:
@@ -274,58 +289,80 @@ class SupervisorAgent:
         user_id = state.get("user_id", SREConstants.agents.default_user_id)
         incident_id = state.get("incident_id")
         # Use user_id as actor_id for investigation memory retrieval (consistent with storage)
-        actor_id = state.get("user_id", state.get("actor_id", SREConstants.agents.default_actor_id))
+        actor_id = state.get(
+            "user_id", state.get("actor_id", SREConstants.agents.default_actor_id)
+        )
         session_id = state.get("session_id")
-        
+
         # Retrieve memory context if memory system is enabled
         memory_context_text = ""
         if self.memory_client:
             try:
-                logger.info(f"Retrieving memory context for user_id={user_id}, query='{current_query}'")
-                
+                logger.info(
+                    f"Retrieving memory context for user_id={user_id}, query='{current_query}'"
+                )
+
                 # Get memory context from hooks
                 if not session_id:
-                    raise ValueError("session_id is required for memory retrieval but not found in state")
-                    
+                    raise ValueError(
+                        "session_id is required for memory retrieval but not found in state"
+                    )
+
                 memory_context = self.memory_hooks.on_investigation_start(
                     query=current_query,
                     user_id=user_id,
                     actor_id=actor_id,
                     session_id=session_id,
-                    incident_id=incident_id
+                    incident_id=incident_id,
                 )
-                
+
                 # Store memory context in state
                 state["memory_context"] = memory_context
-                
+
                 # Log user preferences for debugging (they're stored in memory_context)
                 user_prefs = memory_context.get("user_preferences", [])
-                logger.debug(f"Stored {len(user_prefs)} user preferences in memory_context during planning")
-                logger.debug(f"User preferences being stored in memory_context: {user_prefs}")
-                
+                logger.debug(
+                    f"Stored {len(user_prefs)} user preferences in memory_context during planning"
+                )
+                logger.debug(
+                    f"User preferences being stored in memory_context: {user_prefs}"
+                )
+
                 # Format memory context for prompt
                 pref_count = len(memory_context.get("user_preferences", []))
-                infrastructure_by_agent = memory_context.get("infrastructure_by_agent", {})
-                total_knowledge = sum(len(memories) for memories in infrastructure_by_agent.values())
+                infrastructure_by_agent = memory_context.get(
+                    "infrastructure_by_agent", {}
+                )
+                total_knowledge = sum(
+                    len(memories) for memories in infrastructure_by_agent.values()
+                )
                 investigation_count = len(memory_context.get("past_investigations", []))
-                
+
                 if memory_context.get("user_preferences"):
                     memory_context_text += f"\nRelevant User Preferences:\n{json.dumps(memory_context['user_preferences'], indent=2, default=_json_serializer)}\n"
-                
+
                 if infrastructure_by_agent:
-                    memory_context_text += f"\nRelevant Infrastructure Knowledge (organized by agent):\n"
+                    memory_context_text += (
+                        "\nRelevant Infrastructure Knowledge (organized by agent):\n"
+                    )
                     for agent_id, agent_memories in infrastructure_by_agent.items():
-                        memory_context_text += f"\n  From {agent_id} ({len(agent_memories)} items):\n"
+                        memory_context_text += (
+                            f"\n  From {agent_id} ({len(agent_memories)} items):\n"
+                        )
                         memory_context_text += f"{json.dumps(agent_memories, indent=4, default=_json_serializer)}\n"
-                
+
                 if memory_context.get("past_investigations"):
                     memory_context_text += f"\nSimilar Past Investigations:\n{json.dumps(memory_context['past_investigations'], indent=2, default=_json_serializer)}\n"
-                
-                logger.info(f"Retrieved memory context for planning: {pref_count} preferences, {total_knowledge} knowledge items from {len(infrastructure_by_agent)} agents, {investigation_count} past investigations")
-                
+
+                logger.info(
+                    f"Retrieved memory context for planning: {pref_count} preferences, {total_knowledge} knowledge items from {len(infrastructure_by_agent)} agents, {investigation_count} past investigations"
+                )
+
                 if pref_count + total_knowledge + investigation_count == 0:
-                    logger.info("No relevant memories found - this may be the first interaction or a new topic")
-                
+                    logger.info(
+                        "No relevant memories found - this may be the first interaction or a new topic"
+                    )
+
             except Exception as e:
                 logger.error(f"Failed to retrieve memory context: {e}", exc_info=True)
                 memory_context_text = ""
@@ -333,10 +370,14 @@ class SupervisorAgent:
         # Enhanced planning prompt that instructs the agent to use memory tools
         planning_instructions = _read_planning_prompt()
         # Replace placeholders manually to avoid issues with JSON braces in the prompt
-        formatted_planning_instructions = planning_instructions.replace("{user_id}", user_id)
+        formatted_planning_instructions = planning_instructions.replace(
+            "{user_id}", user_id
+        )
         if session_id:
-            formatted_planning_instructions = formatted_planning_instructions.replace("{session_id}", session_id)
-        
+            formatted_planning_instructions = formatted_planning_instructions.replace(
+                "{session_id}", session_id
+            )
+
         planning_prompt = f"""{self.system_prompt}
 
 User's query: {current_query}
@@ -350,40 +391,44 @@ User's query: {current_query}
                 # Create messages for the planning agent
                 messages = [
                     SystemMessage(content=planning_prompt),
-                    HumanMessage(content=f"Create an investigation plan for: {current_query}")
+                    HumanMessage(
+                        content=f"Create an investigation plan for: {current_query}"
+                    ),
                 ]
-                
+
                 # Use the planning agent with memory tools
-                plan_response = await self.planning_agent.ainvoke({
-                    "messages": messages
-                })
-                
+                plan_response = await self.planning_agent.ainvoke(
+                    {"messages": messages}
+                )
+
                 # Extract the final message content
                 if plan_response and "messages" in plan_response:
                     final_message = plan_response["messages"][-1]
                     plan_text = final_message.content
-                    
+
                     # Always log the complete planning agent response
                     logger.info(f"Planning agent original response: {plan_text}")
-                    
+
                     # Try to extract JSON from the response
                     import re
-                    
+
                     # Look for JSON in the response - try multiple patterns
                     json_patterns = [
                         r'\{[^{}]*"steps"[^{}]*"agents_sequence"[^{}]*"complexity"[^{}]*"auto_execute"[^{}]*"reasoning"[^{}]*\}',  # Specific pattern for our structure
                         r'\{.*?"steps".*?\}',  # Broader pattern
-                        r'\{.*\}',  # Most general pattern
+                        r"\{.*\}",  # Most general pattern
                     ]
-                    
+
                     json_content = None
                     for pattern in json_patterns:
                         json_match = re.search(pattern, plan_text, re.DOTALL)
                         if json_match:
                             json_content = json_match.group()
-                            logger.info(f"Extracted JSON content using pattern: {json_content}")
+                            logger.info(
+                                f"Extracted JSON content using pattern: {json_content}"
+                            )
                             break
-                    
+
                     if json_content:
                         try:
                             # Clean up the JSON content
@@ -391,93 +436,122 @@ User's query: {current_query}
                             plan_json = json.loads(json_content)
                             logger.info(f"Successfully parsed JSON: {plan_json}")
                             plan = InvestigationPlan(**plan_json)
-                            logger.info("Successfully created InvestigationPlan from JSON")
+                            logger.info(
+                                "Successfully created InvestigationPlan from JSON"
+                            )
                         except json.JSONDecodeError as e:
                             logger.error(f"JSON decode error: {e}")
                             logger.error(f"Failed JSON content: {json_content}")
-                            logger.warning("Could not parse JSON from planning agent response, using fallback")
+                            logger.warning(
+                                "Could not parse JSON from planning agent response, using fallback"
+                            )
                             plan = InvestigationPlan(
-                                steps=["Investigate the reported issue", "Analyze findings and provide recommendations"],
+                                steps=[
+                                    "Investigate the reported issue",
+                                    "Analyze findings and provide recommendations",
+                                ],
                                 agents_sequence=["metrics_agent", "logs_agent"],
                                 complexity="simple",
                                 auto_execute=True,
-                                reasoning="Default investigation plan due to JSON parsing error"
+                                reasoning="Default investigation plan due to JSON parsing error",
                             )
                         except Exception as e:
                             logger.error(f"Error creating InvestigationPlan: {e}")
                             logger.error(f"Plan JSON was: {plan_json}")
-                            logger.warning("Could not create InvestigationPlan from parsed JSON, using fallback")
+                            logger.warning(
+                                "Could not create InvestigationPlan from parsed JSON, using fallback"
+                            )
                             plan = InvestigationPlan(
-                                steps=["Investigate the reported issue", "Analyze findings and provide recommendations"],
+                                steps=[
+                                    "Investigate the reported issue",
+                                    "Analyze findings and provide recommendations",
+                                ],
                                 agents_sequence=["metrics_agent", "logs_agent"],
                                 complexity="simple",
                                 auto_execute=True,
-                                reasoning="Default investigation plan due to validation error"
+                                reasoning="Default investigation plan due to validation error",
                             )
                     else:
                         # Fallback to basic plan if JSON parsing fails
-                        logger.warning("Could not find JSON pattern in planning agent response, using fallback")
+                        logger.warning(
+                            "Could not find JSON pattern in planning agent response, using fallback"
+                        )
                         logger.warning(f"Response content was: {plan_text}")
                         plan = InvestigationPlan(
-                            steps=["Investigate the reported issue", "Analyze findings and provide recommendations"],
+                            steps=[
+                                "Investigate the reported issue",
+                                "Analyze findings and provide recommendations",
+                            ],
                             agents_sequence=["metrics_agent", "logs_agent"],
                             complexity="simple",
                             auto_execute=True,
-                            reasoning="Default investigation plan due to no JSON found"
+                            reasoning="Default investigation plan due to no JSON found",
                         )
                 else:
                     raise ValueError("No response from planning agent")
-                    
+
             except Exception as e:
-                logger.error(f"Error using planning agent with memory tools: {e}", exc_info=True)
+                logger.error(
+                    f"Error using planning agent with memory tools: {e}", exc_info=True
+                )
                 # Fallback to structured output without tools
                 structured_llm = self.llm.with_structured_output(InvestigationPlan)
-                plan = await structured_llm.ainvoke([
-                    SystemMessage(content=planning_prompt),
-                    HumanMessage(content=current_query),
-                ])
+                plan = await structured_llm.ainvoke(
+                    [
+                        SystemMessage(content=planning_prompt),
+                        HumanMessage(content=current_query),
+                    ]
+                )
         else:
             # Fallback to structured output without memory tools
             structured_llm = self.llm.with_structured_output(InvestigationPlan)
-            plan = await structured_llm.ainvoke([
-                SystemMessage(content=planning_prompt),
-                HumanMessage(content=current_query),
-            ])
+            plan = await structured_llm.ainvoke(
+                [
+                    SystemMessage(content=planning_prompt),
+                    HumanMessage(content=current_query),
+                ]
+            )
 
         logger.info(
             f"Created investigation plan: {len(plan.steps)} steps, complexity: {plan.complexity}"
         )
-        
+
         # Store conversation in memory
         if self.conversation_manager and user_id and session_id:
             try:
                 # Get supervisor display name with fallback
-                supervisor_name = getattr(SREConstants.agents, 'supervisor', None)
+                supervisor_name = getattr(SREConstants.agents, "supervisor", None)
                 if supervisor_name:
                     supervisor_display_name = supervisor_name.display_name
                 else:
                     supervisor_display_name = "Supervisor Agent"
-                    
+
                 messages_to_store = [
                     (current_query, "USER"),
-                    (f"[Agent: {supervisor_display_name}]\nInvestigation Plan:\n{self._format_plan_markdown(plan)}", "ASSISTANT")
+                    (
+                        f"[Agent: {supervisor_display_name}]\nInvestigation Plan:\n{self._format_plan_markdown(plan)}",
+                        "ASSISTANT",
+                    ),
                 ]
-                
+
                 success = self.conversation_manager.store_conversation_batch(
                     messages=messages_to_store,
                     user_id=user_id,
                     session_id=session_id,
-                    agent_name=supervisor_display_name
+                    agent_name=supervisor_display_name,
                 )
-                
+
                 if success:
                     logger.info("Supervisor: Successfully stored planning conversation")
                 else:
                     logger.warning("Supervisor: Failed to store planning conversation")
-                    
+
             except Exception as e:
-                logger.error(f"Supervisor: Error storing planning conversation: {e}", exc_info=True)
-        
+                logger.error(
+                    f"Supervisor: Error storing planning conversation: {e}",
+                    exc_info=True,
+                )
+
         return plan
 
     def _format_plan_markdown(self, plan: InvestigationPlan) -> str:
@@ -618,8 +692,8 @@ I've analyzed your query and created the following investigation plan:
 
 {plan_text}
 
-**Complexity:** {plan.get('complexity', 'unknown').title()}
-**Reasoning:** {plan.get('reasoning', 'Standard investigation approach')}
+**Complexity:** {plan.get("complexity", "unknown").title()}
+**Reasoning:** {plan.get("reasoning", "Standard investigation approach")}
 
 This plan will help systematically investigate your issue. Would you like me to proceed with this plan, or would you prefer to modify it?
 
@@ -641,18 +715,26 @@ You can:
         user_preferences = []
         if "memory_context" in state:
             memory_ctx = state["memory_context"]
-            user_preferences = memory_ctx.get('user_preferences', [])
-            logger.debug(f"Memory context found with {len(user_preferences)} user preferences")
+            user_preferences = memory_ctx.get("user_preferences", [])
+            logger.debug(
+                f"Memory context found with {len(user_preferences)} user preferences"
+            )
         else:
             logger.debug("No memory_context found in state")
-        
-        logger.info(f"Retrieved user preferences from memory_context for aggregation: {len(user_preferences)} items")
+
+        logger.info(
+            f"Retrieved user preferences from memory_context for aggregation: {len(user_preferences)} items"
+        )
         logger.debug(f"Full state keys available: {list(state.keys())}")
-        
+
         try:
             # Try enhanced formatting first
             final_response = self.formatter.format_investigation_response(
-                query=query, agent_results=agent_results, metadata=metadata, plan=plan, user_preferences=user_preferences
+                query=query,
+                agent_results=agent_results,
+                metadata=metadata,
+                plan=plan,
+                user_preferences=user_preferences,
             )
         except Exception as e:
             logger.warning(
@@ -674,16 +756,24 @@ You can:
                     state.get("current_query", "No query provided")
                     or "No query provided"
                 )
-                agent_results_json = json.dumps(agent_results, indent=2, default=_json_serializer)
+                agent_results_json = json.dumps(
+                    agent_results, indent=2, default=_json_serializer
+                )
                 auto_approve_plan = state.get("auto_approve_plan", False) or False
-                
+
                 # Use the user_preferences we already retrieved
-                user_preferences_json = json.dumps(user_preferences, indent=2, default=_json_serializer) if user_preferences else ""
+                user_preferences_json = (
+                    json.dumps(user_preferences, indent=2, default=_json_serializer)
+                    if user_preferences
+                    else ""
+                )
 
                 if is_plan_based:
                     current_step = metadata.get("plan_step", 0)
                     total_steps = len(plan.get("steps", []))
-                    plan_json = json.dumps(plan.get("steps", []), indent=2, default=_json_serializer)
+                    plan_json = json.dumps(
+                        plan.get("steps", []), indent=2, default=_json_serializer
+                    )
 
                     aggregation_prompt = (
                         prompt_loader.get_supervisor_aggregation_prompt(
@@ -712,9 +802,7 @@ You can:
                 logger.error(f"Error loading aggregation prompts: {e}")
                 # Fallback to simple prompt
                 system_prompt = "You are an expert at presenting technical investigation results clearly and professionally."
-                aggregation_prompt = (
-                    f"Summarize these findings: {json.dumps(agent_results, indent=2, default=_json_serializer)}"
-                )
+                aggregation_prompt = f"Summarize these findings: {json.dumps(agent_results, indent=2, default=_json_serializer)}"
 
             response = await self.llm.ainvoke(
                 [
@@ -728,51 +816,73 @@ You can:
         # Store final response conversation in memory
         user_id = state.get("user_id")
         session_id = state.get("session_id")
-        if self.conversation_manager and user_id and session_id and not metadata.get("plan_pending_approval"):
+        if (
+            self.conversation_manager
+            and user_id
+            and session_id
+            and not metadata.get("plan_pending_approval")
+        ):
             try:
                 # Store the final aggregated response
                 # Get supervisor display name with fallback
-                supervisor_name = getattr(SREConstants.agents, 'supervisor', None)
+                supervisor_name = getattr(SREConstants.agents, "supervisor", None)
                 if supervisor_name:
                     supervisor_display_name = supervisor_name.display_name
                 else:
                     supervisor_display_name = "Supervisor Agent"
-                    
+
                 messages_to_store = [
-                    (f"[Agent: {supervisor_display_name}]\n{final_response}", "ASSISTANT")
+                    (
+                        f"[Agent: {supervisor_display_name}]\n{final_response}",
+                        "ASSISTANT",
+                    )
                 ]
-                
+
                 success = self.conversation_manager.store_conversation_batch(
                     messages=messages_to_store,
                     user_id=user_id,
                     session_id=session_id,
-                    agent_name=supervisor_display_name
+                    agent_name=supervisor_display_name,
                 )
-                
+
                 if success:
-                    logger.info("Supervisor: Successfully stored final response conversation")
+                    logger.info(
+                        "Supervisor: Successfully stored final response conversation"
+                    )
                 else:
-                    logger.warning("Supervisor: Failed to store final response conversation")
-                    
+                    logger.warning(
+                        "Supervisor: Failed to store final response conversation"
+                    )
+
             except Exception as e:
-                logger.error(f"Supervisor: Error storing final response conversation: {e}", exc_info=True)
+                logger.error(
+                    f"Supervisor: Error storing final response conversation: {e}",
+                    exc_info=True,
+                )
 
         # Save investigation summary to memory if enabled
         if self.memory_client and not metadata.get("plan_pending_approval"):
             try:
                 incident_id = state.get("incident_id", "auto-generated")
                 agents_used = state.get("agents_invoked", [])
-                logger.debug(f"Saving investigation summary for incident_id={incident_id}, agents_used={agents_used}")
-                
-                # Use user_id as actor_id for investigation summaries (consistent with conversation memory)
-                actor_id = state.get("user_id", state.get("actor_id", SREConstants.agents.default_actor_id))
-                self.memory_hooks.on_investigation_complete(
-                    state=state,
-                    final_response=final_response,
-                    actor_id=actor_id
+                logger.debug(
+                    f"Saving investigation summary for incident_id={incident_id}, agents_used={agents_used}"
                 )
-                logger.info(f"Saved investigation summary to memory for incident {incident_id}")
+
+                # Use user_id as actor_id for investigation summaries (consistent with conversation memory)
+                actor_id = state.get(
+                    "user_id",
+                    state.get("actor_id", SREConstants.agents.default_actor_id),
+                )
+                self.memory_hooks.on_investigation_complete(
+                    state=state, final_response=final_response, actor_id=actor_id
+                )
+                logger.info(
+                    f"Saved investigation summary to memory for incident {incident_id}"
+                )
             except Exception as e:
-                logger.error(f"Failed to save investigation summary: {e}", exc_info=True)
+                logger.error(
+                    f"Failed to save investigation summary: {e}", exc_info=True
+                )
 
         return {"final_response": final_response, "next": "FINISH"}

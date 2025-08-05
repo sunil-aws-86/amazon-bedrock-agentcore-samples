@@ -2,7 +2,6 @@
 
 import argparse
 import asyncio
-import glob
 import json
 import logging
 import os
@@ -13,7 +12,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import yaml
 from dotenv import load_dotenv
@@ -41,7 +40,7 @@ load_dotenv(Path(__file__).parent / ".env")
 
 def _get_user_from_env() -> str:
     """Get user_id from environment variable.
-    
+
     Returns:
         user_id from USER_ID environment variable or default
     """
@@ -52,16 +51,18 @@ def _get_user_from_env() -> str:
     else:
         # Fallback to default user_id
         default_user_id = SREConstants.agents.default_user_id
-        logger.warning(f"USER_ID not set in environment, using default: {default_user_id}")
+        logger.warning(
+            f"USER_ID not set in environment, using default: {default_user_id}"
+        )
         return default_user_id
 
 
 def _get_session_from_env(mode: str) -> str:
     """Get session_id from environment variable or generate one.
-    
+
     Args:
         mode: "interactive" or "prompt" for auto-generation prefix
-    
+
     Returns:
         session_id from SESSION_ID environment variable or auto-generated
     """
@@ -72,7 +73,9 @@ def _get_session_from_env(mode: str) -> str:
     else:
         # Auto-generate session_id
         auto_session_id = f"{mode}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        logger.info(f"SESSION_ID not set in environment, auto-generated: {auto_session_id}")
+        logger.info(
+            f"SESSION_ID not set in environment, auto-generated: {auto_session_id}"
+        )
         return auto_session_id
 
 
@@ -135,23 +138,23 @@ def _archive_old_reports(output_dir: str) -> None:
         output_path = Path(output_dir)
         if not output_path.exists():
             return
-        
+
         # Get today's date in the format used in filenames (YYYYMMDD)
         today = datetime.now().strftime("%Y%m%d")
-        
+
         # Process all .md and .log files in the reports directory
         for file_path in output_path.glob("*.md"):
             if not file_path.is_file():
                 continue
-            
+
             # Extract date from filename (format: YYYYMMDD)
             # Handle both old format (query_YYYYMMDD_HHMMSS.md) and new format (query_user_id_USER_YYYYMMDD_HHMMSS.md)
             filename = file_path.name
-            date_match = re.search(r'202[0-9]{5}', filename)
-            
+            date_match = re.search(r"202[0-9]{5}", filename)
+
             if date_match:
                 date_part = date_match.group()
-                
+
                 # Only move files that are not from today
                 if date_part != today:
                     # Extract year, month, day
@@ -159,30 +162,30 @@ def _archive_old_reports(output_dir: str) -> None:
                     month = date_part[4:6]
                     day = date_part[6:8]
                     date_folder_name = f"{year}-{month}-{day}"
-                    
+
                     # Create date folder if it doesn't exist
                     date_folder = output_path / date_folder_name
                     date_folder.mkdir(exist_ok=True)
-                    
+
                     # Move file to date folder
                     destination = date_folder / filename
                     if not destination.exists():  # Avoid overwriting existing files
                         shutil.move(str(file_path), str(destination))
                         logger.info(f"Archived {filename} to {date_folder_name}/")
-        
+
         # Also process .log files
         for file_path in output_path.glob("*.log"):
             if not file_path.is_file():
                 continue
-            
+
             # Extract date from filename (format: YYYYMMDD)
             # Handle both old format (query_YYYYMMDD_HHMMSS.log) and new format (query_user_id_USER_YYYYMMDD_HHMMSS.log)
             filename = file_path.name
-            date_match = re.search(r'202[0-9]{5}', filename)
-            
+            date_match = re.search(r"202[0-9]{5}", filename)
+
             if date_match:
                 date_part = date_match.group()
-                
+
                 # Only move files that are not from today
                 if date_part != today:
                     # Extract year, month, day
@@ -190,17 +193,17 @@ def _archive_old_reports(output_dir: str) -> None:
                     month = date_part[4:6]
                     day = date_part[6:8]
                     date_folder_name = f"{year}-{month}-{day}"
-                    
+
                     # Create date folder if it doesn't exist
                     date_folder = output_path / date_folder_name
                     date_folder.mkdir(exist_ok=True)
-                    
+
                     # Move file to date folder
                     destination = date_folder / filename
                     if not destination.exists():  # Avoid overwriting existing files
                         shutil.move(str(file_path), str(destination))
                         logger.info(f"Archived {filename} to {date_folder_name}/")
-                        
+
     except Exception as e:
         logger.warning(f"Failed to archive old reports: {e}")
 
@@ -220,7 +223,7 @@ def _save_final_response_to_markdown(
     # Create output directory if it doesn't exist
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Archive old reports before saving new one
     _archive_old_reports(output_dir)
 
@@ -247,13 +250,13 @@ def _save_final_response_to_markdown(
         clean_query = "query"
 
     timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
-    
+
     # Include user_id in filename if provided
     if user_id:
         filename = f"{clean_query}_user_id_{user_id}_{timestamp_str}.md"
     else:
         filename = f"{clean_query}_{timestamp_str}.md"
-    
+
     filepath = output_path / filename
 
     # Create markdown content
@@ -355,7 +358,10 @@ def create_mcp_client() -> MultiServerMCPClient:
 
 
 async def create_multi_agent_system(
-    provider: str = "bedrock", checkpointer=None, force_delete_memory: bool = False, **llm_kwargs
+    provider: str = "bedrock",
+    checkpointer=None,
+    force_delete_memory: bool = False,
+    **llm_kwargs,
 ):
     """Create multi-agent system with MCP tools."""
     logger.info(f"Creating multi-agent system with provider: {provider}")
@@ -397,21 +403,21 @@ async def create_multi_agent_system(
 
     # Combine local tools with MCP tools
     local_tools = [get_current_time]
-    
+
     # Add memory tools if memory system is enabled
     memory_tools = []
     try:
+        from .memory.client import SREMemoryClient
         from .memory.config import _load_memory_config
         from .memory.tools import create_memory_tools
-        from .memory.client import SREMemoryClient
-        
+
         memory_config = _load_memory_config()
         if memory_config.enabled:
             logger.debug("Adding memory tools to agent tool list")
             memory_client = SREMemoryClient(
                 memory_name=memory_config.memory_name,
                 region=memory_config.region,
-                force_delete=force_delete_memory
+                force_delete=force_delete_memory,
             )
             memory_tools = create_memory_tools(memory_client)
             logger.info(f"Added {len(memory_tools)} memory tools to agent tool list")
@@ -420,7 +426,7 @@ async def create_multi_agent_system(
     except Exception as e:
         logger.warning(f"Failed to add memory tools: {e}")
         memory_tools = []
-    
+
     all_tools = local_tools + mcp_tools + memory_tools
 
     # Debug: Show all tools being passed to agents
@@ -428,45 +434,71 @@ async def create_multi_agent_system(
     logger.info(f"  - Local tools: {len(local_tools)}")
     logger.info(f"  - MCP tools: {len(mcp_tools)}")
     logger.info(f"  - Memory tools: {len(memory_tools)}")
-    
+
     # Log detailed memory tool information
     if memory_tools:
         logger.info("Memory tools details:")
         for tool in memory_tools:
             logger.info(f"    Tool: {getattr(tool, 'name', 'unknown')}")
-            logger.info(f"      Description: {getattr(tool, 'description', 'No description')}")
+            logger.info(
+                f"      Description: {getattr(tool, 'description', 'No description')}"
+            )
             # Log args schema details
-            args_schema = getattr(tool, 'args_schema', None)
+            args_schema = getattr(tool, "args_schema", None)
             if args_schema:
                 logger.info(f"      Args schema: {args_schema.__name__}")
                 # Handle both Pydantic v1 and v2
-                if hasattr(args_schema, 'model_fields'):
+                if hasattr(args_schema, "model_fields"):
                     # Pydantic v2
                     for field_name, field_info in args_schema.model_fields.items():
                         field_type = str(field_info.annotation)
-                        field_desc = field_info.description if field_info.description else 'No description'
-                        field_default = str(field_info.default) if field_info.default is not None else 'No default'
-                        logger.info(f"        - {field_name}: {field_type} (description: {field_desc}, default: {field_default})")
-                elif hasattr(args_schema, '__fields__'):
+                        field_desc = (
+                            field_info.description
+                            if field_info.description
+                            else "No description"
+                        )
+                        field_default = (
+                            str(field_info.default)
+                            if field_info.default is not None
+                            else "No default"
+                        )
+                        logger.info(
+                            f"        - {field_name}: {field_type} (description: {field_desc}, default: {field_default})"
+                        )
+                elif hasattr(args_schema, "__fields__"):
                     # Pydantic v1
                     for field_name, field_info in args_schema.__fields__.items():
                         field_type = str(field_info.type_)
-                        field_desc = field_info.field_info.description if hasattr(field_info.field_info, 'description') else 'No description'
-                        field_default = str(field_info.default) if field_info.default is not None else 'No default'
-                        logger.info(f"        - {field_name}: {field_type} (description: {field_desc}, default: {field_default})")
+                        field_desc = (
+                            field_info.field_info.description
+                            if hasattr(field_info.field_info, "description")
+                            else "No description"
+                        )
+                        field_default = (
+                            str(field_info.default)
+                            if field_info.default is not None
+                            else "No default"
+                        )
+                        logger.info(
+                            f"        - {field_name}: {field_type} (description: {field_desc}, default: {field_default})"
+                        )
             else:
-                logger.info(f"      Args schema: No schema")
+                logger.info("      Args schema: No schema")
             # Log additional attributes if present
-            if hasattr(tool, 'memory_client'):
-                logger.info(f"      Has memory_client: Yes")
+            if hasattr(tool, "memory_client"):
+                logger.info("      Has memory_client: Yes")
             logger.info(f"      Tool class: {tool.__class__.__name__}")
-    
+
     logger.info("All tool names:")
     for tool in all_tools:
         tool_name = getattr(tool, "name", "unknown")
         tool_description = getattr(tool, "description", "No description")
         # Extract just the first line of description for cleaner logging
-        description_first_line = tool_description.split("\n")[0].strip() if tool_description else "No description"
+        description_first_line = (
+            tool_description.split("\n")[0].strip()
+            if tool_description
+            else "No description"
+        )
         logger.info(f"  - {tool_name}: {description_first_line}")
 
     logger.info(f"Additional local tools: {len(local_tools)}")
@@ -484,7 +516,10 @@ async def create_multi_agent_system(
 
     # Build the multi-agent graph
     graph = build_multi_agent_graph(
-        tools=all_tools, llm_provider=provider, force_delete_memory=force_delete_memory, **llm_kwargs
+        tools=all_tools,
+        llm_provider=provider,
+        force_delete_memory=force_delete_memory,
+        **llm_kwargs,
     )
 
     return graph, all_tools
@@ -591,7 +626,9 @@ async def _run_interactive_session(
         saved_messages, saved_state = _load_conversation_state()
 
     # Create multi-agent system
-    graph, all_tools = await create_multi_agent_system(provider, force_delete_memory=force_delete_memory)
+    graph, all_tools = await create_multi_agent_system(
+        provider, force_delete_memory=force_delete_memory
+    )
 
     # Initialize conversation state
     messages = []
@@ -663,8 +700,12 @@ async def _run_interactive_session(
                         last_response = None
                         original_query = None
                         # Generate new session ID for next conversation
-                        current_session_id = f"interactive-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                        logger.info(f"Generated new session ID for next conversation: {current_session_id}")
+                        current_session_id = (
+                            f"interactive-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                        )
+                        logger.info(
+                            f"Generated new session ID for next conversation: {current_session_id}"
+                        )
                         print("✨ New conversation session started.")
                     else:
                         print("❌ Failed to save report")
@@ -737,7 +778,7 @@ async def _run_interactive_session(
             # Get user_id from environment and use input as-is
             user_id = _get_user_from_env()
             cleaned_query = user_input
-            
+
             # Track original query for report naming (only set if not already set)
             if original_query is None:
                 original_query = cleaned_query  # Use cleaned query for reports
@@ -858,7 +899,9 @@ async def _run_interactive_session(
                                         )  # Show full content
                                     else:
                                         content_preview = "No content"
-                                    print(f"      {i+1}. {msg_type}: {content_preview}")
+                                    print(
+                                        f"      {i + 1}. {msg_type}: {content_preview}"
+                                    )
                                     if hasattr(msg, "tool_calls") and msg.tool_calls:
                                         print(
                                             f"         Tool calls: {len(msg.tool_calls)}"
@@ -1070,12 +1113,14 @@ async def main():
         # Single prompt mode
         else:
             try:
-                graph, all_tools = await create_multi_agent_system(args.provider, force_delete_memory=args.force_delete_memory)
+                graph, all_tools = await create_multi_agent_system(
+                    args.provider, force_delete_memory=args.force_delete_memory
+                )
                 logger.info("Multi-agent system created successfully")
             except Exception as e:
                 from .llm_utils import (
-                    LLMAuthenticationError,
                     LLMAccessError,
+                    LLMAuthenticationError,
                     LLMProviderError,
                 )
 
@@ -1084,7 +1129,7 @@ async def main():
                 ):
                     print(f"\n❌ {type(e).__name__}:")
                     print(str(e))
-                    print(f"\n💡 Quick fix: Try running with the other provider:")
+                    print("\n💡 Quick fix: Try running with the other provider:")
                     other_provider = (
                         "anthropic" if args.provider == "bedrock" else "bedrock"
                     )
@@ -1101,7 +1146,9 @@ async def main():
 
             # Generate session ID for this prompt-mode conversation
             prompt_session_id = f"prompt-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            logger.info(f"Generated session ID for prompt mode: {prompt_session_id}, user_id: {user_id}")
+            logger.info(
+                f"Generated session ID for prompt mode: {prompt_session_id}, user_id: {user_id}"
+            )
 
             # Create initial state
             initial_state: AgentState = {
@@ -1213,7 +1260,9 @@ async def main():
                                         )  # Show full content
                                     else:
                                         content_preview = "No content"
-                                    print(f"      {i+1}. {msg_type}: {content_preview}")
+                                    print(
+                                        f"      {i + 1}. {msg_type}: {content_preview}"
+                                    )
                                     if hasattr(msg, "tool_calls") and msg.tool_calls:
                                         print(
                                             f"         Tool calls: {len(msg.tool_calls)}"

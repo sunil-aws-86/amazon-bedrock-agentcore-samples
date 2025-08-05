@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
-from typing import Optional
+
 from pydantic import BaseModel, Field
 
 # Configure logging with basicConfig
@@ -163,6 +163,7 @@ class ApplicationConfig(BaseModel):
 
 class AgentMetadata(BaseModel):
     """Metadata for a single agent."""
+
     actor_id: str = Field(description="Unique actor ID for memory operations")
     display_name: str = Field(description="Human-readable agent name")
     description: str = Field(description="Agent capabilities description")
@@ -171,71 +172,70 @@ class AgentMetadata(BaseModel):
 
 class MemoryConfig(BaseModel):
     """Memory system configuration constants."""
-    
+
     # Query constants for comprehensive memory retrieval
     user_preferences_query: str = Field(
         default="user settings communication escalation notification reporting workflow preferences",
-        description="Natural language query to retrieve all user preferences including communication, escalation, notification, reporting, and workflow preferences"
+        description="Natural language query to retrieve all user preferences including communication, escalation, notification, reporting, and workflow preferences",
     )
-    
+
     # Memory retrieval limits
     max_preferences_results: int = Field(
         default=10,
         ge=1,
         le=50,
-        description="Maximum number of preference memories to retrieve"
+        description="Maximum number of preference memories to retrieve",
     )
-    
+
     max_infrastructure_results: int = Field(
         default=50,
         ge=1,
         le=100,
-        description="Maximum number of infrastructure knowledge memories to retrieve"
+        description="Maximum number of infrastructure knowledge memories to retrieve",
     )
-    
+
     max_investigation_results: int = Field(
         default=5,
         ge=1,
         le=20,
-        description="Maximum number of past investigation memories to retrieve"
+        description="Maximum number of past investigation memories to retrieve",
     )
-    
+
     # Content length limits for memory storage
     max_content_length: int = Field(
         default=9000,
         ge=1000,
         le=10000,
-        description="Maximum character length for conversation content stored in memory"
+        description="Maximum character length for conversation content stored in memory",
     )
 
 
 class AgentsConstant(BaseModel):
     """Agent-specific constants for the SRE system."""
-    
+
     default_actor_id: str = Field(
         default="sre-agent",
-        description="Default actor ID used for saving and retrieving memories"
+        description="Default actor ID used for saving and retrieving memories",
     )
-    
+
     default_user_id: str = Field(
         default="default-sre-user",
-        description="Default user ID for memory operations when no user is specified"
+        description="Default user ID for memory operations when no user is specified",
     )
-    
+
     session_prefix: str = Field(
-        default="sre-session",
-        description="Prefix used for session IDs"
+        default="sre-session", description="Prefix used for session IDs"
     )
-    
+
     memory_types: dict[str, str] = Field(
         default={
             "preferences": "preferences",
-            "infrastructure": "infrastructure", 
-            "investigations": "investigations"
+            "infrastructure": "infrastructure",
+            "investigations": "investigations",
         },
-        description="Memory type identifiers"
+        description="Memory type identifiers",
     )
-    
+
     # Agent metadata for consistent identity management
     agents: dict[str, AgentMetadata] = Field(
         default={
@@ -243,34 +243,34 @@ class AgentsConstant(BaseModel):
                 actor_id="kubernetes-agent",
                 display_name="Kubernetes Infrastructure Agent",
                 description="Manages Kubernetes cluster operations and monitoring",
-                agent_type="kubernetes"
+                agent_type="kubernetes",
             ),
             "logs": AgentMetadata(
                 actor_id="logs-agent",
-                display_name="Application Logs Agent", 
+                display_name="Application Logs Agent",
                 description="Handles application log analysis and searching",
-                agent_type="logs"
+                agent_type="logs",
             ),
             "metrics": AgentMetadata(
                 actor_id="metrics-agent",
                 display_name="Performance Metrics Agent",
                 description="Provides application performance and resource metrics",
-                agent_type="metrics"
+                agent_type="metrics",
             ),
             "runbooks": AgentMetadata(
                 actor_id="runbooks-agent",
                 display_name="Operational Runbooks Agent",
                 description="Provides operational procedures and troubleshooting guides",
-                agent_type="runbooks"
+                agent_type="runbooks",
             ),
             "supervisor": AgentMetadata(
                 actor_id="supervisor-agent",
                 display_name="Supervisor Agent",
                 description="Orchestrates investigation planning and coordinates multiple specialized agents",
-                agent_type="supervisor"
-            )
+                agent_type="supervisor",
+            ),
         },
-        description="Metadata for all agents in the system"
+        description="Metadata for all agents in the system",
     )
 
 

@@ -75,7 +75,7 @@ class SREOutputFormatter:
         plan_info = plan or metadata.get("investigation_plan", {})
         current_step = metadata.get("plan_step", 0) + 1
         total_steps = len(plan_info.get("steps", []))
-        
+
         output = []
 
         # Header
@@ -151,8 +151,11 @@ class SREOutputFormatter:
         return "\n".join(output)
 
     def _generate_executive_summary(
-        self, query: str, agent_results: Dict[str, Any], metadata: Dict[str, Any],
-        user_preferences: Optional[List[Dict[str, Any]]] = None
+        self,
+        query: str,
+        agent_results: Dict[str, Any],
+        metadata: Dict[str, Any],
+        user_preferences: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
         """Generate executive summary using LLM analysis of investigation results."""
         if not agent_results:
@@ -171,10 +174,11 @@ class SREOutputFormatter:
                     formatted_results.append(f"**{agent_name}:**\n{result}\n")
 
             results_text = "\n".join(formatted_results)
-            
+
             # Add user preferences to the context if available
             if user_preferences:
                 import json
+
                 prefs_text = json.dumps(user_preferences, indent=2, default=str)
                 results_text += f"\n\n**User Preferences:**\n{prefs_text}\n"
 
@@ -188,10 +192,16 @@ class SREOutputFormatter:
             logger.info(f"System Prompt Length: {len(system_prompt)} characters")
             logger.info(f"User Prompt Length: {len(user_prompt)} characters")
             if user_preferences:
-                logger.info(f"User preferences included in context: {len(user_preferences)} preference items")
-                logger.info(f"User preferences preview: {str(user_preferences)[:200]}...")
+                logger.info(
+                    f"User preferences included in context: {len(user_preferences)} preference items"
+                )
+                logger.info(
+                    f"User preferences preview: {str(user_preferences)[:200]}..."
+                )
             else:
-                logger.info("No user preferences provided to executive summary generation")
+                logger.info(
+                    "No user preferences provided to executive summary generation"
+                )
             logger.info(f"User Prompt Content:\n{user_prompt}")
             logger.info("=== END EXECUTIVE SUMMARY PROMPT LOGGING ===")
 

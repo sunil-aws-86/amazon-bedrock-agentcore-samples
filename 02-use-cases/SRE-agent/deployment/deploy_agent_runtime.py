@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
 import argparse
-import boto3
 import json
 import logging
 import os
 import time
 from pathlib import Path
-from dotenv import load_dotenv
+
+import boto3
 from botocore.exceptions import ClientError
+from dotenv import load_dotenv
 
 # Configure logging with basicConfig
 logging.basicConfig(
@@ -129,7 +130,7 @@ def _create_agent_runtime(
             environmentVariables=env_vars,
         )
 
-        logging.info(f"Agent Runtime created successfully!")
+        logging.info("Agent Runtime created successfully!")
         logging.info(f"Agent Runtime ARN: {response['agentRuntimeArn']}")
         logging.info(f"Status: {response['status']}")
         _write_agent_arn_to_file(response["agentRuntimeArn"])
@@ -184,7 +185,7 @@ def _create_agent_runtime(
             environmentVariables=env_vars,
         )
 
-        logging.info(f"Agent Runtime recreated successfully!")
+        logging.info("Agent Runtime recreated successfully!")
         logging.info(f"Agent Runtime ARN: {response['agentRuntimeArn']}")
         logging.info(f"Status: {response['status']}")
         _write_agent_arn_to_file(response["agentRuntimeArn"])

@@ -3,7 +3,7 @@
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Optional
 
 # Configure logging with basicConfig
 logging.basicConfig(
@@ -95,7 +95,11 @@ class PromptLoader:
             raise ValueError(f"Error formatting template {template_name}: {e}")
 
     def get_agent_prompt(
-        self, agent_type: str, agent_name: str, agent_description: str, memory_context: str = ""
+        self,
+        agent_type: str,
+        agent_name: str,
+        agent_description: str,
+        memory_context: str = "",
     ) -> str:
         """Combine base agent prompt with agent-specific prompt and memory context.
 
@@ -127,7 +131,9 @@ class PromptLoader:
             # Add memory context if provided
             if memory_context:
                 combined_prompt += f"\n\n## Relevant Memory Context\n\n{memory_context}\n\nUse this context to inform your responses and avoid repeating work that has already been done."
-                logger.debug(f"Added memory context to {agent_type} agent prompt ({len(memory_context)} characters)")
+                logger.debug(
+                    f"Added memory context to {agent_type} agent prompt ({len(memory_context)} characters)"
+                )
 
             return combined_prompt
 
@@ -238,6 +244,10 @@ def load_template(template_name: str, **kwargs) -> str:
     return prompt_loader.load_template(template_name, **kwargs)
 
 
-def get_agent_prompt(agent_type: str, agent_name: str, agent_description: str, memory_context: str = "") -> str:
+def get_agent_prompt(
+    agent_type: str, agent_name: str, agent_description: str, memory_context: str = ""
+) -> str:
     """Get complete agent prompt using the default loader."""
-    return prompt_loader.get_agent_prompt(agent_type, agent_name, agent_description, memory_context)
+    return prompt_loader.get_agent_prompt(
+        agent_type, agent_name, agent_description, memory_context
+    )

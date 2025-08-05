@@ -7,16 +7,16 @@ from datetime import datetime, timezone
 from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import BaseTool
+from pydantic import BaseModel
 
-from .multi_agent_langgraph import create_multi_agent_system
 from .agent_state import AgentState
 from .constants import SREConstants
 
 # Import logging config
 from .logging_config import configure_logging
+from .multi_agent_langgraph import create_multi_agent_system
 
 # Configure logging based on DEBUG environment variable
 # This ensures debug mode works even when not run via __main__
@@ -78,13 +78,13 @@ async def initialize_agent():
         )
 
     except Exception as e:
-        from .llm_utils import LLMAuthenticationError, LLMAccessError, LLMProviderError
+        from .llm_utils import LLMAccessError, LLMAuthenticationError, LLMProviderError
 
         if isinstance(e, (LLMAuthenticationError, LLMAccessError, LLMProviderError)):
             logger.error(f"LLM Provider Error: {e}")
             print(f"\n❌ {type(e).__name__}:")
             print(str(e))
-            print(f"\n💡 Set LLM_PROVIDER environment variable to switch providers:")
+            print("\n💡 Set LLM_PROVIDER environment variable to switch providers:")
             other_provider = "anthropic" if provider == "bedrock" else "bedrock"
             print(f"   export LLM_PROVIDER={other_provider}")
         else:
@@ -257,6 +257,7 @@ def invoke_sre_agent(prompt: str, provider: str = "anthropic") -> str:
 
 if __name__ == "__main__":
     import argparse
+
     import uvicorn
 
     parser = argparse.ArgumentParser(description="SRE Agent Runtime")

@@ -56,5 +56,9 @@ class AgentState(TypedDict):
     actor_id: Optional[str]  # Actor ID for memory storage and retrieval
     session_id: Optional[str]  # Session ID for conversation grouping
     memory_context: Optional[Dict[str, Any]]  # Retrieved memory context
-    captured_preferences: Optional[List[Dict[str, Any]]]  # Preferences captured during session
-    captured_knowledge: Optional[List[Dict[str, Any]]]  # Infrastructure knowledge captured
+    captured_preferences: Optional[
+        List[Dict[str, Any]]
+    ]  # Preferences captured during session
+    captured_knowledge: Optional[
+        List[Dict[str, Any]]
+    ]  # Infrastructure knowledge captured
