@@ -108,6 +108,13 @@ echo "GATEWAY_ACCESS_TOKEN=$(cat gateway/.access_token)" >> sre_agent/.env
 
 # Initialize memory system and add user preferences
 uv run python scripts/manage_memories.py update
+
+# Note: Memory system takes 10-12 minutes to be ready
+# Check memory status after 10 minutes:
+uv run python scripts/manage_memories.py list
+
+# Once memory shows as ready, run update again to ensure preferences are loaded:
+uv run python scripts/manage_memories.py update
 ```
 
 ## Execution instructions
