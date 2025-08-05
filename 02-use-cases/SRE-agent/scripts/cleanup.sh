@@ -20,12 +20,30 @@ RUNTIME_NAME="${RUNTIME_NAME:-$DEFAULT_RUNTIME_NAME}"
 REGION="${REGION:-$DEFAULT_REGION}"
 FORCE_DELETE=false
 
+# Function to read gateway name from config.yaml
+read_gateway_name_from_config() {
+    local config_file="$PROJECT_ROOT/gateway/config.yaml"
+    
+    if [ -f "$config_file" ]; then
+        # Extract gateway_name from YAML, handling quoted and unquoted values
+        local gateway_name=$(grep "^gateway_name:" "$config_file" | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/^"\([^"]*\)".*/\1/' | sed 's/[ \t]*#.*//')
+        if [ -n "$gateway_name" ]; then
+            echo "$gateway_name"
+            return 0
+        fi
+    fi
+    
+    # Return empty string if not found
+    echo ""
+    return 1
+}
+
 # Function to show usage
 show_usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --gateway-name NAME     Gateway name to delete (default: $DEFAULT_GATEWAY_NAME)"
+    echo "  --gateway-name NAME     Gateway name to delete (default: auto-detect from gateway/config.yaml)"
     echo "  --runtime-name NAME     Runtime name to delete (default: $DEFAULT_RUNTIME_NAME)"
     echo "  --region REGION         AWS region (default: $DEFAULT_REGION)"
     echo "  --force                 Skip confirmation prompts"
@@ -292,12 +310,23 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Try to auto-detect gateway name from config if not explicitly set
+if [ "$GATEWAY_NAME" = "$DEFAULT_GATEWAY_NAME" ]; then
+    CONFIG_GATEWAY_NAME=$(read_gateway_name_from_config)
+    if [ -n "$CONFIG_GATEWAY_NAME" ]; then
+        GATEWAY_NAME="$CONFIG_GATEWAY_NAME"
+    fi
+fi
+
 # Main execution
 echo "🧹 SRE Agent Cleanup Script"
 echo "=========================="
 echo ""
 echo "Configuration:"
 echo "  Gateway Name: $GATEWAY_NAME"
+if [ -n "$CONFIG_GATEWAY_NAME" ] && [ "$GATEWAY_NAME" = "$CONFIG_GATEWAY_NAME" ]; then
+    echo "    (auto-detected from gateway/config.yaml)"
+fi
 echo "  Runtime Name: $RUNTIME_NAME"
 echo "  Region: $REGION"
 echo ""

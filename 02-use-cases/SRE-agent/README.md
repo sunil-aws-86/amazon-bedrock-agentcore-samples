@@ -33,15 +33,15 @@ The SRE Agent is a multi-agent system for Site Reliability Engineers that helps 
 For comprehensive information about the SRE Agent system, please refer to the following detailed documentation:
 
 - **[System Components](docs/system-components.md)** - In-depth architecture and component explanations
-- **[Specialized Agents](docs/specialized-agents.md)** - Detailed capabilities of each of the four specialized agents
+- **[Memory System](docs/memory-system.md)** - Long-term memory integration, user personalization, and cross-session learning
 - **[Configuration](docs/configuration.md)** - Complete configuration guides for environment variables, agents, and gateway
+- **[Deployment Guide](docs/deployment-guide.md)** - Complete deployment guide for Amazon Bedrock AgentCore Runtime
 - **[Security](docs/security.md)** - Security best practices and considerations for production deployment
 - **[Demo Environment](docs/demo-environment.md)** - Demo scenarios, data customization, and testing setup
 - **[Example Use Cases](docs/example-use-cases.md)** - Detailed walkthroughs and interactive troubleshooting examples
 - **[Verification](docs/verification.md)** - Ground truth verification and report validation
 - **[Development](docs/development.md)** - Testing, code quality, and contribution guidelines
-- **[Deployment Guide](docs/deployment-guide.md)** - Complete deployment guide for Amazon Bedrock AgentCore Runtime
-- **[Memory System](docs/memory-system.md)** - Long-term memory integration, user personalization, and cross-session learning
+
 
 ## Prerequisites
 
@@ -57,6 +57,8 @@ For comprehensive information about the SRE Agent system, please refer to the fo
 > **Note:** All prerequisites must be completed before proceeding to the use case setup. The setup will fail without proper SSL certificates, IAM permissions, and identity provider configuration.
 
 ## Use case setup
+
+> **Configuration Guide**: For detailed information about all configuration files used in this project, see the [Configuration Documentation](docs/configuration.md).
 
 ```bash
 # Clone the repository
