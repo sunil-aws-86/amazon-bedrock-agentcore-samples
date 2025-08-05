@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from langchain_anthropic import ChatAnthropic
 from langchain_aws import ChatBedrock
+
+from .llm_utils import create_llm_with_error_handling
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.prebuilt import create_react_agent
 from pydantic import BaseModel, Field, field_validator
@@ -194,7 +196,8 @@ Create the plan in JSON format with these fields:
 class SupervisorAgent:
     """Supervisor agent that orchestrates other agents with memory capabilities."""
 
-    def __init__(self, llm_provider: str = "anthropic", force_delete_memory: bool = False, **llm_kwargs):
+    def __init__(self, llm_provider: str = "bedrock", force_delete_memory: bool = False, **llm_kwargs):
+
         self.llm_provider = llm_provider
         self.llm = self._create_llm(**llm_kwargs)
         self.system_prompt = _read_supervisor_prompt()
@@ -226,26 +229,8 @@ class SupervisorAgent:
             logger.info("Memory system disabled")
 
     def _create_llm(self, **kwargs):
-        """Create LLM instance based on provider."""
-        config = SREConstants.get_model_config(self.llm_provider, **kwargs)
-
-        if self.llm_provider == "anthropic":
-            return ChatAnthropic(
-                model=config["model_id"],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"],
-            )
-        elif self.llm_provider == "bedrock":
-            return ChatBedrock(
-                model_id=config["model_id"],
-                region_name=config["region_name"],
-                model_kwargs={
-                    "temperature": config["temperature"],
-                    "max_tokens": config["max_tokens"],
-                },
-            )
-        else:
-            raise ValueError(f"Unsupported provider: {self.llm_provider}")
+        """Create LLM instance with improved error handling."""
+        return create_llm_with_error_handling(self.llm_provider, **kwargs)
 
     async def retrieve_memory(
         self, 
