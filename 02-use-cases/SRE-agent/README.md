@@ -119,6 +119,8 @@ uv run python scripts/manage_memories.py list
 uv run python scripts/manage_memories.py update
 ```
 
+> **Local Setup Complete**: Your SRE Agent is now running locally on your EC2 instance and is exercising the AgentCore Gateway and Memory services. If you want to deploy this agent on AgentCore Runtime so you can integrate it into your applications (like a chatbot, Slack bot, etc.), follow the instructions in the [Development to Production Deployment Flow](#development-to-production-deployment-flow) section below.
+
 ## Execution instructions
 
 ### Memory-Enhanced Personalized Investigations
@@ -245,6 +247,8 @@ For complete step-by-step instructions including local testing, container buildi
 To maintain connectivity with the Amazon Bedrock AgentCore Gateway, you need to periodically restart backend servers and refresh the access token. Run the gateway configuration script:
 
 ```bash
+# Important: Run this from within the virtual environment
+source .venv/bin/activate  # If not already activated
 ./scripts/configure_gateway.sh
 ```
 
@@ -267,7 +271,7 @@ For more details, see the [configure_gateway.sh](scripts/configure_gateway.sh) s
 
 If you encounter "gateway connection failed" or "MCP tools unavailable" errors:
 1. Check if the access token has expired (24-hour limit)
-2. Run `./scripts/configure_gateway.sh` to refresh authentication
+2. Run `./scripts/configure_gateway.sh` to refresh authentication (from within the virtual environment)
 3. Verify backend servers are running with `ps aux | grep python`
 4. Check SSL certificate validity if using HTTPS
 

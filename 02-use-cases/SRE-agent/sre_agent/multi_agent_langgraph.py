@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import os
+import random
 import re
 import shutil
 import sys
@@ -370,36 +371,68 @@ async def create_multi_agent_system(
     if provider == "anthropic" and not llm_kwargs.get("api_key"):
         llm_kwargs["api_key"] = _get_anthropic_api_key()
 
-    # Create MCP client and get tools
+    # Create MCP client and get tools with retry logic
     mcp_tools = []
-    try:
-        client = create_mcp_client()
-        # Add timeout for MCP tool loading to prevent hanging
-        all_mcp_tools = await asyncio.wait_for(
-            client.get_tools(), timeout=SREConstants.timeouts.mcp_tools_timeout_seconds
-        )
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            client = create_mcp_client()
+            # Add timeout for MCP tool loading to prevent hanging
+            all_mcp_tools = await asyncio.wait_for(
+                client.get_tools(), timeout=SREConstants.timeouts.mcp_tools_timeout_seconds
+            )
 
-        # Don't filter out x-amz-agentcore-search as it's a global tool
-        mcp_tools = all_mcp_tools
+            # Don't filter out x-amz-agentcore-search as it's a global tool
+            mcp_tools = all_mcp_tools
 
-        logger.info(f"Retrieved {len(mcp_tools)} tools from MCP")
+            logger.info(f"Retrieved {len(mcp_tools)} tools from MCP")
 
-        # Print tool information (only in debug mode)
-        logger.info(f"MCP tools loaded: {len(mcp_tools)}")
-        if should_show_debug_traces():
-            print(f"\nMCP tools loaded: {len(mcp_tools)}")
-            for tool in mcp_tools:
-                tool_name = getattr(tool, "name", "unknown")
-                tool_desc = getattr(tool, "description", "No description")
-                print(f"  - {tool_name}: {tool_desc[:80]}...")
-                logger.info(f"  - {tool_name}: {tool_desc[:80]}...")
+            # Print tool information (only in debug mode)
+            logger.info(f"MCP tools loaded: {len(mcp_tools)}")
+            if should_show_debug_traces():
+                print(f"\nMCP tools loaded: {len(mcp_tools)}")
+                for tool in mcp_tools:
+                    tool_name = getattr(tool, "name", "unknown")
+                    tool_desc = getattr(tool, "description", "No description")
+                    print(f"  - {tool_name}: {tool_desc[:80]}...")
+                    logger.info(f"  - {tool_name}: {tool_desc[:80]}...")
+            
+            # Success - break out of retry loop
+            break
 
-    except asyncio.TimeoutError:
-        logger.warning("MCP tool loading timed out after 30 seconds")
-        mcp_tools = []
-    except Exception as e:
-        logger.warning(f"Failed to load MCP tools: {e}")
-        mcp_tools = []
+        except asyncio.TimeoutError:
+            logger.warning("MCP tool loading timed out after 30 seconds")
+            mcp_tools = []
+            break  # Don't retry on timeout
+            
+        except Exception as e:
+            retry_count += 1
+            error_msg = str(e)
+            
+            # Check if it's a rate limiting error (429)
+            if "429" in error_msg or "Too Many Requests" in error_msg:
+                if retry_count < max_retries:
+                    # Exponential backoff with jitter
+                    base_delay = 2 ** retry_count  # 2, 4, 8 seconds
+                    jitter = random.uniform(0, 1)  # Add 0-1 second random jitter
+                    wait_time = base_delay + jitter
+                    
+                    logger.warning(
+                        f"Rate limited by MCP server (attempt {retry_count}/{max_retries}). "
+                        f"Waiting {wait_time:.1f} seconds before retry..."
+                    )
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"Failed to load MCP tools after {max_retries} retries: {e}")
+                    mcp_tools = []
+            else:
+                # For other errors, don't retry
+                logger.warning(f"Failed to load MCP tools: {e}")
+                mcp_tools = []
+                break
 
     # Combine local tools with MCP tools
     local_tools = [get_current_time]
