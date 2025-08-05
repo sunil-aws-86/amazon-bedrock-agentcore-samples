@@ -106,7 +106,7 @@ sys.path.append('.')
 from main import _check_gateway_exists, _delete_gateway
 
 try:
-    client = boto3.client('bedrock-agentcore', region_name='$REGION')
+    client = boto3.client('bedrock-agentcore-control', region_name='$REGION')
     
     # Check if gateway exists
     gateway_id = _check_gateway_exists(client, '$GATEWAY_NAME')
@@ -148,7 +148,7 @@ sys.path.append('.')
 from deploy_agent_runtime import _get_agent_runtime_id_by_name, _delete_agent_runtime
 
 try:
-    client = boto3.client('bedrock-agentcore', region_name='$REGION')
+    client = boto3.client('bedrock-agentcore-control', region_name='$REGION')
     
     # Get runtime ID by name
     runtime_id = _get_agent_runtime_id_by_name(client, '$RUNTIME_NAME')
