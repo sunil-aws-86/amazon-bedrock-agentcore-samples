@@ -561,23 +561,11 @@ uv run python scripts/manage_memories.py update --config-file custom_users.yaml
 
 ## Benefits
 
-### For Users
-- **Personalized Experience:** Remembers preferences and communication styles
-- **Faster Resolution:** Leverages past investigation knowledge  
-- **Consistent Escalation:** Automatically suggests appropriate contacts
-- **Historical Context:** References similar past issues and solutions
-
-### For Teams
-- **Knowledge Sharing:** Captures tribal knowledge automatically
-- **Pattern Recognition:** Identifies recurring infrastructure issues
-- **Onboarding Support:** New team members benefit from accumulated knowledge
-- **Continuous Learning:** System becomes more effective over time
-
-### For Operations
-- **Reduced MTTR:** Faster problem resolution through historical context
-- **Better Escalation:** Appropriate team routing based on past patterns
-- **Knowledge Retention:** Preserves institutional knowledge even with team changes
-- **Trend Analysis:** Identifies patterns across multiple incidents
+- **Personalized Investigations:** Tailors reports and communication to individual user preferences and roles
+- **Faster Resolution:** Leverages historical context and past investigation knowledge
+- **Knowledge Preservation:** Automatically captures and shares tribal knowledge across team changes
+- **Pattern Recognition:** Identifies recurring issues and optimizes escalation routing
+- **Reduced MTTR:** Accelerates problem resolution through accumulated institutional knowledge
 
 ## Privacy and Data Management
 
