@@ -43,7 +43,7 @@ show_usage() {
     echo "  3. Deletes the AgentCore Gateway"
     echo "  4. Deletes memory resources"
     echo "  5. Deletes the AgentCore Runtime"
-    echo "  6. Removes local configuration files"
+    echo "  6. Removes generated files"
     echo ""
     echo "Examples:"
     echo "  $0                                          # Use defaults"
@@ -230,9 +230,9 @@ except Exception as e:
 "
 }
 
-# Function to clean up local files
+# Function to clean up generated files
 cleanup_local_files() {
-    echo "🧹 Cleaning up local configuration files..."
+    echo "🧹 Cleaning up generated files..."
     
     cd "$PROJECT_ROOT"
     
@@ -259,24 +259,6 @@ cleanup_local_files() {
         echo "✅ Removed .memory_id"
     fi
     
-    # Remove environment file
-    if [ -f "sre_agent/.env" ]; then
-        rm -f sre_agent/.env
-        echo "✅ Removed sre_agent/.env"
-    fi
-    
-    # Remove reports directory
-    if [ -d "reports" ]; then
-        rm -rf reports/
-        echo "✅ Removed reports/ directory"
-    fi
-    
-    # Remove virtual environment if it exists
-    if [ -d ".venv" ]; then
-        echo "🗑️  Removing Python virtual environment..."
-        rm -rf .venv
-        echo "✅ Removed .venv directory"
-    fi
 }
 
 # Parse command line arguments
@@ -342,7 +324,7 @@ echo ""
 delete_agent_runtime
 echo ""
 
-# Step 5: Clean up local files
+# Step 5: Clean up generated files
 cleanup_local_files
 echo ""
 
@@ -353,7 +335,6 @@ echo "   ✅ Stopped backend servers"
 echo "   ✅ Deleted AgentCore Gateway and all targets"
 echo "   ✅ Deleted memory resources"
 echo "   ✅ Deleted AgentCore Runtime"
-echo "   ✅ Removed local configuration files"
-echo "   ✅ Cleaned up virtual environment"
+echo "   ✅ Removed generated files"
 echo ""
 echo "🎯 All SRE Agent AWS resources have been removed."

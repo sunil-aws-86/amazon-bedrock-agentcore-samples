@@ -284,7 +284,7 @@ This script will:
 - Delete the AgentCore Gateway and all its targets
 - Delete memory resources
 - Delete the AgentCore Runtime
-- Remove local configuration files and virtual environment
+- Remove generated files (gateway URIs, tokens, agent ARNs, memory IDs)
 
 ### Manual Local Cleanup Only
 
@@ -296,14 +296,11 @@ cd backend
 ./scripts/stop_demo_backend.sh
 cd ..
 
-# Remove virtual environment
-deactivate
-rm -rf .venv
-
-# Clean up generated files
-rm -rf reports/
+# Clean up generated files only
 rm -rf gateway/.gateway_uri gateway/.access_token
-rm -rf sre_agent/.env
+rm -rf deployment/.agent_arn .memory_id
+
+# Note: .env, .venv, and reports/ are preserved for development continuity
 ```
 
 ## Disclaimer
