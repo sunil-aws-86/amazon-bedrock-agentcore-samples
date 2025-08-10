@@ -256,7 +256,7 @@ Step 1: Configure nginx server block
 # Navigate to your project directory
 cd /path/to/your/AgentCore/project
 
-# Step 1: Update paths in the nginx config file 'okta-local.conf'
+Step 1: Update paths in the nginx config file 'okta-local.conf' located at /path/to/your/AgentCore/okta-auth/nginx/
 # Replace placeholder paths with your actual project path
 # There are 2 paths to be updated in Server block in 'okta-local.conf'. Use absolute paths for below from your project.
 # 1. at root /path/to/your/AgentCore/okta-auth;
@@ -264,8 +264,6 @@ cd /path/to/your/AgentCore/project
 #/okta-auth {
 #        UPDATE THIS PATH: Replace with your actual project path + /okta-auth
 #        alias /path/to/your/AgentCore/okta-auth;
-
-sed -i '' "s|/path/to/your/AgentCore|$(pwd)|g" okta-auth/nginx/okta-local.conf
 
 # Verify the paths were updated correctly
 cat okta-auth/nginx/okta-local.conf | grep "root\|alias"
