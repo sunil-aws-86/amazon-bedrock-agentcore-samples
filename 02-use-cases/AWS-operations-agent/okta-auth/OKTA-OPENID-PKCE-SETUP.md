@@ -254,16 +254,16 @@ For local PKCE testing, you need to add the server block to your nginx configura
 ```bash
 Step 1: Configure nginx server block
 # Navigate to your project directory
-cd /path/to/your/AgentCore/project
+cd /path/to/your/AWS-operations-agent/project
 
-Step 1: Update paths in the nginx config file 'okta-local.conf' located at /path/to/your/AgentCore/okta-auth/nginx/
+Step 1: Update paths in the nginx config file 'okta-local.conf' located at /path/to/your/AWS-operations-agent/okta-auth/nginx/
 # Replace placeholder paths with your actual project path
 # There are 2 paths to be updated in Server block in 'okta-local.conf'. Use absolute paths for below from your project.
-# 1. at root /path/to/your/AgentCore/okta-auth;
+# 1. at root /path/to/your/AWS-operations-agent/okta-auth;
 # 2. at location 
 #/okta-auth {
 #        UPDATE THIS PATH: Replace with your actual project path + /okta-auth
-#        alias /path/to/your/AgentCore/okta-auth;
+#        alias /path/to/your/AWS-operations-agent/okta-auth;
 
 # Verify the paths were updated correctly
 cat okta-auth/nginx/okta-local.conf | grep "root\|alias"
