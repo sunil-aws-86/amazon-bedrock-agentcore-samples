@@ -273,16 +273,16 @@ Step 2: IMPORTANT - okta-local.conf contains only a server block, not a complete
 
 # Manual Integration Steps:
 1. Find your nginx.conf location:
-#    - macOS (Homebrew): /usr/local/etc/nginx/nginx.conf
+#    - macOS (Homebrew): /usr/local/etc/nginx/nginx.conf or /opt/homebrew/etc/nginx/nginx.conf
 #    - Linux: /etc/nginx/nginx.conf
 #    - Docker: /etc/nginx/nginx.conf
 
 2. Make a backup of your current nginx.conf
-sudo cp /usr/local/etc/nginx/nginx.conf /usr/local/etc/nginx/nginx.conf.backup  # macOS
+sudo cp /opt/homebrew/etc/nginx/nginx.conf /opt/homebrew/etc/nginx/nginx.conf.backup  # macOS
 # sudo cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup                    # Linux
 
 3. Open your main nginx.conf file for editing:
-sudo nano /usr/local/etc/nginx/nginx.conf  # macOS
+sudo vi /opt/homebrew/etc/nginx/nginx.conf  # macOS
 # sudo nano /etc/nginx/nginx.conf          # Linux
 
 4. Find the http {} block in nginx.conf
