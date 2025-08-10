@@ -140,7 +140,6 @@ vim config/static-config.yaml
 # - aws.region: Your preferred AWS region  (this project tested on us-east-1)
 # - okta.domain: Your Okta domain
 # - okta.client_credentials.client_id: Your Okta client ID
-# - okta.client_credentials.client_secret: Set via environment variable
 
 # IMPORTANT: Update IAM policy files with your AWS account ID
 # Replace YOUR_AWS_ACCOUNT_ID placeholder in these files:
