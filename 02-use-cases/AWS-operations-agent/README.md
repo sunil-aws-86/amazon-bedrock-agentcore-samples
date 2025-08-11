@@ -209,7 +209,6 @@ python src/client.py
 
 #### Note: `Please use http://localhost:8080/okta-auth/iframe-oauth-flow.html to fetch access token as the client will ask for it`
 
-
 The client will show you available deployed agents:
 ```
 🤖 AgentCore Chatbot Client
