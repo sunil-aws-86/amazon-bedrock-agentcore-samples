@@ -2,3 +2,5 @@ strands-agents
 duckduckgo-search
 strands-agents-tools
 uv
+bedrock-agentcore
+ddgs
