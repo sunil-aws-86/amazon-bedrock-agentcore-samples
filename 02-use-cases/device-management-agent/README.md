@@ -185,6 +185,22 @@ python gateway_observability.py
 cd ..
 ```
 
+#### Setup Agent Runtime
+```bash
+cd agent-runtime
+chmod +x setup.sh
+./setup.sh
+cd ..
+```
+
+#### Setup Frontend (Optional)
+```bash
+cd frontend
+chmod +x setup_and_run.sh
+./setup_and_run.sh
+cd ..
+```
+
 ### 5. Generate Test Data (Optional)
 
 To populate the tables with synthetic test data:
@@ -244,7 +260,28 @@ vi mcp.json
 
 Replace `<Bearer token>` with the access token obtained from the Cognito authentication request.
 
-### 3. Sample prompts:
+### 3. Using the Web Frontend
+
+After setting up the frontend, you can interact with the Device Management system through the web interface:
+
+1. **Access the application**:
+   ```bash
+   # If using Docker
+   open http://localhost:5001
+   
+   # If running locally
+   open http://localhost:5001
+   ```
+
+2. **Authentication**:
+   - Use AWS Cognito login (if configured)
+   - Or use the simple login form with your credentials
+
+3. **Chat Interface**:
+   - Type your device management queries in the chat interface
+   - Responses will stream in real-time from the agent
+
+### 4. Sample prompts:
 
 1. "Can you list all the dormant devices?"
 2. "Can you update SSID for my device ID DG-10016 to XXXXXXXXXX'?"
@@ -297,6 +334,14 @@ The examples provided in this repository are for experimental and educational pu
 - `device-management-target.py`: Script to create a gateway target for the Lambda function
 - `.env`: Environment variables configuration file
 - `test_lambda.py`: Script to test the Lambda function locally
+
+### Folders
+
+- `device-management/`: Contains the Lambda function and DynamoDB setup
+- `gateway/`: Contains gateway creation and configuration scripts
+- `agent-runtime/`: Contains agent runtime components for handling communication between frontend and backend services
+- `frontend/`: Contains the web frontend application for device management
+- `images/`: Contains architecture diagrams and documentation images
 
 ### IAM Permissions
 
