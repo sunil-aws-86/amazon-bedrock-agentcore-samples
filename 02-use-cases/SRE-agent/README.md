@@ -116,8 +116,20 @@ else
   echo "Skipping backend API server startup (START_API_BACKEND is set to $START_API_BACKEND)"
 fi
 
-# Create and configure the AgentCore Gateway
+# Configure the AgentCore Gateway
 cd gateway
+cp config.yaml.example config.yaml
+# Edit config.yaml and update the parameter values
+# The file contains helpful comments for each parameter
+# Key parameters to update:
+#   - account_id: Your AWS account ID
+#   - region: Your AWS region
+#   - role_name: IAM role with BedrockAgentCoreFullAccess
+#   - user_pool_id and client_id: From Cognito setup
+#   - s3_bucket: Your S3 bucket for OpenAPI schemas
+# See gateway/config.yaml for detailed parameter descriptions
+
+# Create and configure the AgentCore Gateway
 ./create_gateway.sh
 ./mcp_cmds.sh
 cd ..
