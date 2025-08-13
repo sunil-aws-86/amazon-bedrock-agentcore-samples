@@ -90,6 +90,8 @@ def build_multi_agent_graph(
     tools: List[BaseTool],
     llm_provider: str = "bedrock",
     force_delete_memory: bool = False,
+    export_graph: bool = False,
+    graph_output_path: str = "./sre_agent_architecture.md",
     **llm_kwargs,
 ) -> StateGraph:
     """Build the multi-agent collaboration graph.
@@ -98,6 +100,8 @@ def build_multi_agent_graph(
         tools: List of all available tools
         llm_provider: LLM provider to use
         force_delete_memory: Whether to force delete existing memory
+        export_graph: Whether to export the graph as a Mermaid diagram
+        graph_output_path: Path to save the exported Mermaid diagram (default: ./sre_agent_architecture.md)
         **llm_kwargs: Additional arguments for LLM
 
     Returns:
@@ -178,6 +182,25 @@ def build_multi_agent_graph(
 
     # Compile the graph
     compiled_graph = workflow.compile()
+
+    # Export graph visualization if requested
+    if export_graph:
+        try:
+            # Get the Mermaid representation of the graph
+            mermaid_diagram = compiled_graph.get_graph().draw_mermaid()
+            
+            # Save to file
+            with open(graph_output_path, "w") as f:
+                f.write("# SRE Agent Architecture\n\n")
+                f.write("```mermaid\n")
+                f.write(mermaid_diagram)
+                f.write("\n```\n")
+            
+            logger.info(f"Graph architecture (Mermaid) exported to: {graph_output_path}")
+            print(f"✅ Graph architecture (Mermaid diagram) exported to: {graph_output_path}")
+        except Exception as e:
+            logger.error(f"Failed to export graph: {e}")
+            print(f"❌ Failed to export graph: {e}")
 
     logger.info("Multi-agent collaboration graph built successfully")
     return compiled_graph
