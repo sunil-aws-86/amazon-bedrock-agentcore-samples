@@ -329,8 +329,10 @@ def _read_gateway_config() -> tuple[str, str]:
                 "Gateway URI not found in agent_config.yaml under 'gateway.uri'"
             )
         
-        # Get AWS region from config (with fallback to default)
-        aws_region = config.get("aws", {}).get("region", "us-east-1")
+        # Get AWS region with fallback logic: config -> AWS_REGION env var -> us-east-1
+        aws_region = config.get("aws", {}).get("region")
+        if not aws_region:
+            aws_region = os.environ.get("AWS_REGION", "us-east-1")
 
         # Read access token from environment
         access_token = os.getenv("GATEWAY_ACCESS_TOKEN")
@@ -1157,16 +1159,32 @@ async def main():
     # Configure logging based on debug flag
     debug_enabled = configure_logging(args.debug)
     
-    # Load AWS region from agent_config.yaml
+    # Load AWS region with fallback logic: config -> AWS_REGION env var -> us-east-1
     try:
         config_path = Path(__file__).parent / "config" / "agent_config.yaml"
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
-        aws_region = config.get("aws", {}).get("region", "us-east-1")
-        logger.info(f"Loaded AWS region from config: {aws_region}")
+        
+        # Try to get region from config first
+        aws_region = config.get("aws", {}).get("region")
+        
+        if aws_region:
+            logger.info(f"Using AWS region from agent_config.yaml: {aws_region}")
+        else:
+            # Fallback to AWS_REGION environment variable
+            aws_region = os.environ.get("AWS_REGION")
+            if aws_region:
+                logger.info(f"Using AWS region from AWS_REGION environment variable: {aws_region}")
+            else:
+                # Final fallback to us-east-1
+                aws_region = "us-east-1"
+                logger.info(f"Using default AWS region: {aws_region}")
+                
     except Exception as e:
-        logger.warning(f"Failed to load AWS region from config: {e}, using default us-east-1")
-        aws_region = "us-east-1"
+        logger.warning(f"Failed to load AWS region from config: {e}")
+        # Try environment variable, then default
+        aws_region = os.environ.get("AWS_REGION", "us-east-1")
+        logger.info(f"Using AWS region fallback: {aws_region}")
 
     # Set environment variable so other modules can check debug status
     os.environ["DEBUG"] = "true" if debug_enabled else "false"
