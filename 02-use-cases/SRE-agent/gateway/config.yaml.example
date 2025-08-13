@@ -6,6 +6,9 @@ account_id: "YOUR_ACCOUNT_ID"
 region: "REGION"
 # IAM role used to create and manage the gateway
 # This role must have BedrockAgentCoreFullAccess policy and trust policy for bedrock-agentcore.amazonaws.com
+# For testing: This can be the role of your current EC2 instance or notebook
+# For production: Use a dedicated role for the gateway (recommended)
+# To find your current role, run: aws sts get-caller-identity
 role_name: "YOUR_ROLE_NAME"
 endpoint_url: "https://bedrock-agentcore-control.REGION.amazonaws.com"
 credential_provider_endpoint_url: "https://REGION.prod.agent-credential-provider.cognito.aws.dev"

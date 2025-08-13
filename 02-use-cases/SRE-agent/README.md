@@ -125,6 +125,8 @@ cp config.yaml.example config.yaml
 #   - account_id: Your AWS account ID
 #   - region: Your AWS region
 #   - role_name: IAM role with BedrockAgentCoreFullAccess
+#     For testing: Can be your current EC2/notebook role (run: aws sts get-caller-identity)
+#     For production: Use a dedicated gateway role (recommended)
 #   - user_pool_id and client_id: From Cognito setup
 #   - s3_bucket: Your S3 bucket for OpenAPI schemas
 # See gateway/config.yaml for detailed parameter descriptions
