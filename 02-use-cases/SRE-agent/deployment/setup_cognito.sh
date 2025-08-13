@@ -55,7 +55,6 @@ create_user_pool() {
     if [ $? -eq 0 ] && [ -n "$USER_POOL_ID" ]; then
         log_success "User Pool created: $USER_POOL_ID"
         echo "USER_POOL_ID=$USER_POOL_ID" >> .cognito_config
-        echo "$USER_POOL_ID" > .cognito_user_pool_id
     else
         log_error "Failed to create User Pool"
         exit 1
@@ -135,7 +134,6 @@ create_app_client() {
         log_success "App Client created: $CLIENT_ID"
         echo "COGNITO_CLIENT_ID=$CLIENT_ID" >> .cognito_config
         echo "COGNITO_CLIENT_SECRET=$CLIENT_SECRET" >> .cognito_config
-        echo "$CLIENT_ID" > .cognito_client_id
     else
         log_error "Failed to create App Client"
         exit 1
