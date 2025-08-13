@@ -366,7 +366,7 @@ async def create_multi_agent_system(
     checkpointer=None,
     force_delete_memory: bool = False,
     export_graph: bool = False,
-    graph_output_path: str = "./sre_agent_architecture.md",
+    graph_output_path: str = "./docs/sre_agent_architecture.md",
     region_name: str = None,
     **llm_kwargs,
 ):
@@ -1148,8 +1148,8 @@ async def main():
     )
     parser.add_argument(
         "--graph-output",
-        default="./sre_agent_architecture.md",
-        help="Path to save the exported Mermaid diagram (default: ./sre_agent_architecture.md)",
+        default="./docs/sre_agent_architecture.md",
+        help="Path to save the exported Mermaid diagram (default: ./docs/sre_agent_architecture.md)",
     )
 
     args = parser.parse_args()

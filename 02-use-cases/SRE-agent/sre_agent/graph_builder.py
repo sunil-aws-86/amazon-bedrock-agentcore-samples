@@ -91,7 +91,7 @@ def build_multi_agent_graph(
     llm_provider: str = "bedrock",
     force_delete_memory: bool = False,
     export_graph: bool = False,
-    graph_output_path: str = "./sre_agent_architecture.md",
+    graph_output_path: str = "./docs/sre_agent_architecture.md",
     **llm_kwargs,
 ) -> StateGraph:
     """Build the multi-agent collaboration graph.
@@ -101,7 +101,7 @@ def build_multi_agent_graph(
         llm_provider: LLM provider to use
         force_delete_memory: Whether to force delete existing memory
         export_graph: Whether to export the graph as a Mermaid diagram
-        graph_output_path: Path to save the exported Mermaid diagram (default: ./sre_agent_architecture.md)
+        graph_output_path: Path to save the exported Mermaid diagram (default: ./docs/sre_agent_architecture.md)
         **llm_kwargs: Additional arguments for LLM
 
     Returns:
@@ -186,6 +186,11 @@ def build_multi_agent_graph(
     # Export graph visualization if requested
     if export_graph:
         try:
+            # Create docs directory if it doesn't exist
+            from pathlib import Path
+            output_path = Path(graph_output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            
             # Get the Mermaid representation of the graph
             mermaid_diagram = compiled_graph.get_graph().draw_mermaid()
             
