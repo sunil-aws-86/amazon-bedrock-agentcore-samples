@@ -62,12 +62,14 @@ import seaborn as sns
 import json
 from datetime import datetime
 import os
+import subprocess
 
 # Create directories for outputs
 os.makedirs('analysis', exist_ok=True)
 os.makedirs('reports', exist_ok=True)
 os.makedirs('visualizations', exist_ok=True)
 os.makedirs('data', exist_ok=True)
+os.makedirs('sessions', exist_ok=True)  # For session persistence
 
 # Configure matplotlib
 plt.style.use('seaborn-v0_8-darkgrid')
@@ -76,6 +78,13 @@ sns.set_palette("husl")
 print("Analysis environment ready!")
 print(f"Working directory: {os.getcwd()}")
 print(f"Available directories: {', '.join([d for d in os.listdir('.') if os.path.isdir(d)])}")
+
+# Test AWS CLI availability
+try:
+    result = subprocess.run(['aws', '--version'], capture_output=True, text=True)
+    print(f"AWS CLI available: {result.stdout.strip()}")
+except Exception as e:
+    print(f"AWS CLI not available: {e}")
 """
         
         # Execute setup code
@@ -89,6 +98,346 @@ print(f"Available directories: {', '.join([d for d in os.listdir('.') if os.path
         console.print(f"[dim]{output}[/dim]")
         
         return session_id
+    
+    def save_session_state(self, session_name: str, data: Dict) -> Dict:
+        """NEW: Save session state for later resumption."""
+        try:
+            console.print(f"[cyan]💾 Saving session state: {session_name}[/cyan]")
+
+            # Create a JSON-serializable copy of the data
+            serializable_data = self._make_serializable(data)
+            
+            save_code = f"""
+import json
+import os
+from datetime import datetime
+
+session_data = {json.dumps(serializable_data)}
+session_name = "{session_name}"
+
+# Create session metadata
+session_metadata = {{
+    "session_name": session_name,
+    "saved_at": datetime.now().isoformat(),
+    "data_size": len(json.dumps(session_data))
+}}
+
+# Save session data
+os.makedirs('sessions', exist_ok=True)
+session_file = f'sessions/{{session_name}}_data.json'
+with open(session_file, 'w') as f:
+    json.dump(session_data, f, indent=2)
+
+# Save metadata
+metadata_file = f'sessions/{{session_name}}_metadata.json'
+with open(metadata_file, 'w') as f:
+    json.dump(session_metadata, f, indent=2)
+
+print(f"Session saved: {{session_name}}")
+print(f"Data file: {{session_file}} ({{os.path.getsize(session_file)}} bytes)")
+print(f"Metadata file: {{metadata_file}}")
+
+# List all saved sessions
+all_sessions = [f.replace('_metadata.json', '') for f in os.listdir('sessions') if f.endswith('_metadata.json')]
+print(f"Total saved sessions: {{len(all_sessions)}}")
+"""
+            
+            result = self.code_interpreter.invoke("executeCode", {
+                "code": save_code,
+                "language": "python"
+            })
+            
+            output = self._extract_output(result)
+            
+            return {
+                "status": "success",
+                "session_name": session_name,
+                "output": output
+            }
+            
+        except Exception as e:
+            console.print(f"[red]❌ Session save error: {e}[/red]")
+            return {"status": "error", "error": str(e)}
+
+    def _make_serializable(self, data):
+        """Convert data structure to be JSON serializable, handling LangChain messages."""
+        if data is None:
+            return None
+            
+        if isinstance(data, dict):
+            return {k: self._make_serializable(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [self._make_serializable(item) for item in data]
+        # Handle LangChain message types
+        elif hasattr(data, 'content') and hasattr(data, 'type'):
+            # This is likely a LangChain message object
+            return {
+                "content": data.content,
+                "type": getattr(data, "type", "message")
+            }
+        # Add handling for other custom objects as needed
+        else:
+            try:
+                # Try to serialize with json to test if it's serializable
+                json.dumps(data)
+                return data
+            except (TypeError, OverflowError):
+                # If we can't serialize it, convert to string representation
+                return str(data)
+    
+    def load_session_state(self, session_name: str) -> Dict:
+        """NEW: Load a previously saved session state."""
+        try:
+            console.print(f"[cyan]📂 Loading session state: {session_name}[/cyan]")
+            
+            load_code = f"""
+import json
+import os
+
+session_name = "{session_name}"
+
+# Check if session exists
+data_file = f'sessions/{{session_name}}_data.json'
+metadata_file = f'sessions/{{session_name}}_metadata.json'
+
+if not os.path.exists(data_file):
+    print(f"Session not found: {{session_name}}")
+    print(json.dumps({{"status": "not_found"}}))
+else:
+    # Load session data
+    with open(data_file, 'r') as f:
+        session_data = json.load(f)
+    
+    # Load metadata
+    if os.path.exists(metadata_file):
+        with open(metadata_file, 'r') as f:
+            metadata = json.load(f)
+    else:
+        metadata = {{}}
+    
+    result = {{
+        "status": "success",
+        "data": session_data,
+        "metadata": metadata
+    }}
+    
+    print(json.dumps(result))
+"""
+            
+            result = self.code_interpreter.invoke("executeCode", {
+                "code": load_code,
+                "language": "python"
+            })
+            
+            output = self._extract_output(result)
+            
+            try:
+                return json.loads(output)
+            except:
+                return {"status": "error", "output": output}
+            
+        except Exception as e:
+            console.print(f"[red]❌ Session load error: {e}[/red]")
+            return {"status": "error", "error": str(e)}
+    
+    def save_to_s3_with_aws_cli(self, data: Dict, bucket: str, prefix: str) -> Dict:
+        """NEW: Use AWS CLI within Code Interpreter to save data to S3."""
+        try:
+            console.print(f"[cyan]☁️ Saving to S3 using AWS CLI...[/cyan]")
+            
+            aws_cli_code = f"""
+import json
+import subprocess
+import os
+from datetime import datetime
+
+# Prepare data
+data = {json.dumps(data)}
+bucket = "{bucket}"
+prefix = "{prefix}"
+
+# Save data locally first
+timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+local_file = f'analysis/competitive_analysis_{{timestamp}}.json'
+
+with open(local_file, 'w') as f:
+    json.dump(data, f, indent=2)
+
+print(f"Saved locally: {{local_file}}")
+
+# Use AWS CLI to upload to S3
+s3_key = f"{{prefix}}competitive_analysis_{{timestamp}}.json"
+cmd = [
+    'aws', 's3', 'cp',
+    local_file,
+    f's3://{{bucket}}/{{s3_key}}',
+    '--region', '{self.config.region}'
+]
+
+try:
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    
+    if result.returncode == 0:
+        print(f"Successfully uploaded to S3: s3://{{bucket}}/{{s3_key}}")
+        
+        # List files in the S3 prefix to verify
+        list_cmd = ['aws', 's3', 'ls', f's3://{{bucket}}/{{prefix}}', '--region', '{self.config.region}']
+        list_result = subprocess.run(list_cmd, capture_output=True, text=True, timeout=30)
+        
+        print("Files in S3 prefix:")
+        print(list_result.stdout)
+        
+        output = {{
+            "status": "success",
+            "s3_path": f"s3://{{bucket}}/{{s3_key}}",
+            "local_file": local_file,
+            "file_size": os.path.getsize(local_file)
+        }}
+    else:
+        print(f"AWS CLI error: {{result.stderr}}")
+        output = {{
+            "status": "error",
+            "error": result.stderr
+        }}
+        
+except subprocess.TimeoutExpired:
+    print("AWS CLI command timed out")
+    output = {{
+        "status": "error",
+        "error": "Command timed out"
+    }}
+except Exception as e:
+    print(f"Error: {{e}}")
+    output = {{
+        "status": "error",
+        "error": str(e)
+    }}
+
+print(json.dumps(output))
+"""
+            
+            result = self.code_interpreter.invoke("executeCode", {
+                "code": aws_cli_code,
+                "language": "python"
+            })
+            
+            output = self._extract_output(result)
+            
+            try:
+                # Try to parse JSON output
+                lines = output.strip().split('\n')
+                for line in reversed(lines):
+                    if line.strip().startswith('{'):
+                        return json.loads(line)
+                return {"status": "success", "output": output}
+            except:
+                return {"status": "success", "output": output}
+            
+        except Exception as e:
+            console.print(f"[red]❌ AWS CLI error: {e}[/red]")
+            return {"status": "error", "error": str(e)}
+    
+    def analyze_pricing_patterns(self, competitor_data: Dict) -> Dict:
+        """NEW: Analyze pricing patterns across competitors."""
+        try:
+            console.print("[cyan]🔍 Analyzing pricing patterns...[/cyan]")
+            
+            analysis_code = f"""
+import json
+import pandas as pd
+
+competitor_data = {json.dumps(competitor_data)}
+
+# Analyze what data we have and what's missing
+analysis = {{
+    "competitors_with_pricing": [],
+    "competitors_without_pricing": [],
+    "missing_data": {{}},
+    "patterns": []
+}}
+
+for name, data in competitor_data.items():
+    if data.get('pricing', {{}}).get('status') == 'success':
+        analysis["competitors_with_pricing"].append(name)
+    else:
+        analysis["competitors_without_pricing"].append(name)
+        analysis["missing_data"][name] = ["pricing_tiers", "subscription_details"]
+
+# Identify patterns
+if len(analysis["competitors_with_pricing"]) > 0:
+    analysis["patterns"].append("Pricing data available for analysis")
+    
+print(json.dumps(analysis, indent=2))
+"""
+            
+            result = self.code_interpreter.invoke("executeCode", {
+                "code": analysis_code,
+                "language": "python"
+            })
+            
+            output = self._extract_output(result)
+            
+            try:
+                return json.loads(output)
+            except:
+                return {"raw_output": output}
+            
+        except Exception as e:
+            console.print(f"[red]❌ Pattern analysis error: {e}[/red]")
+            return {"status": "error", "error": str(e)}
+    
+    def generate_competitive_insights(self, competitor_data: Dict, pattern_analysis: Dict) -> Dict:
+        """NEW: Generate insights by combining browser and analysis data."""
+        try:
+            console.print("[cyan]💡 Generating competitive insights...[/cyan]")
+            
+            insights_code = f"""
+import json
+from datetime import datetime
+
+competitor_data = {json.dumps(competitor_data)}
+pattern_analysis = {json.dumps(pattern_analysis)}
+
+insights = {{
+    "generated_at": datetime.now().isoformat(),
+    "total_competitors": len(competitor_data),
+    "data_completeness": {{
+        "with_pricing": len(pattern_analysis.get("competitors_with_pricing", [])),
+        "without_pricing": len(pattern_analysis.get("competitors_without_pricing", []))
+    }},
+    "key_findings": [],
+    "recommendations": []
+}}
+
+# Generate findings
+if pattern_analysis.get("competitors_with_pricing"):
+    insights["key_findings"].append(
+        f"Successfully extracted pricing from {{len(pattern_analysis['competitors_with_pricing'])}} competitors"
+    )
+
+if pattern_analysis.get("missing_data"):
+    insights["recommendations"].append(
+        "Consider manual review for competitors with missing data"
+    )
+
+print(json.dumps(insights, indent=2))
+"""
+            
+            result = self.code_interpreter.invoke("executeCode", {
+                "code": insights_code,
+                "language": "python"
+            })
+            
+            output = self._extract_output(result)
+            
+            try:
+                return json.loads(output)
+            except:
+                return {"raw_output": output}
+            
+        except Exception as e:
+            console.print(f"[red]❌ Insights generation error: {e}[/red]")
+            return {"status": "error", "error": str(e)}
     
     def analyze_competitor_data(self, competitor_name: str, data: Dict) -> Dict:
         """Analyze data for a specific competitor."""
@@ -113,7 +462,9 @@ analysis = {{
         "has_pricing": bool(competitor_data.get('pricing', {{}}).get('data')),
         "has_features": bool(competitor_data.get('features', {{}}).get('data')),
         "navigation_success": competitor_data.get('navigation', {{}}).get('status') == 'success',
-        "screenshots_taken": competitor_data.get('screenshots_taken', 0)
+        "screenshots_taken": competitor_data.get('screenshots_taken', 0),
+        "pages_explored": len(competitor_data.get('additional_pages', [])),
+        "forms_found": len(competitor_data.get('interactive_elements', {{}}).get('forms', []))
     }}
 }}
 
@@ -168,7 +519,14 @@ for file in created_files:
             output = self._extract_output(result)
             
             try:
-                analysis_result = json.loads(output) if output else {}
+                # Try to extract JSON from output
+                lines = output.split('\n')
+                for line in lines:
+                    if line.strip().startswith('{'):
+                        analysis_result = json.loads(line)
+                        break
+                else:
+                    analysis_result = {"raw_output": output}
             except:
                 analysis_result = {"raw_output": output}
             
@@ -208,6 +566,7 @@ competitors = list(all_data.keys())
 success_rates = []
 data_collected = []
 screenshots = []
+pages_explored = []
 
 for comp in competitors:
     comp_data = all_data[comp]
@@ -222,6 +581,9 @@ for comp in competitors:
     
     # Screenshots
     screenshots.append(comp_data.get('screenshots_taken', 0))
+    
+    # Pages explored
+    pages_explored.append(len(comp_data.get('additional_pages', [])))
 
 # Plot 1: Success Rate
 ax1 = axes[0, 0]
@@ -237,11 +599,11 @@ ax2.set_title('Data Points Collected')
 ax2.set_ylabel('Count (Pricing + Features)')
 ax2.set_ylim(0, 2.5)
 
-# Plot 3: Screenshots Taken
+# Plot 3: Pages Explored
 ax3 = axes[1, 0]
-ax3.bar(competitors, screenshots, color='purple', alpha=0.7)
-ax3.set_title('Screenshots Captured')
-ax3.set_ylabel('Count')
+ax3.bar(competitors, pages_explored, color='orange', alpha=0.7)
+ax3.set_title('Additional Pages Explored')
+ax3.set_ylabel('Page Count')
 
 # Plot 4: Summary Table
 ax4 = axes[1, 1]
@@ -255,11 +617,11 @@ for comp in competitors:
         comp,
         '✓' if comp_data.get('status') == 'success' else '✗',
         '✓' if comp_data.get('pricing', {{}}).get('status') == 'success' else '✗',
-        '✓' if comp_data.get('features', {{}}).get('status') == 'success' else '✗'
+        str(len(comp_data.get('additional_pages', [])))
     ])
 
 table = ax4.table(cellText=summary_data,
-                  colLabels=['Competitor', 'Nav', 'Pricing', 'Features'],
+                  colLabels=['Competitor', 'Nav', 'Pricing', 'Pages'],
                   cellLoc='center',
                   loc='center')
 table.auto_set_font_size(False)
@@ -276,7 +638,8 @@ comparison_df = pd.DataFrame({{
     'Navigation': ['Success' if all_data[c].get('status') == 'success' else 'Failed' for c in competitors],
     'Pricing Data': ['Collected' if all_data[c].get('pricing', {{}}).get('status') == 'success' else 'Missing' for c in competitors],
     'Features Data': ['Collected' if all_data[c].get('features', {{}}).get('status') == 'success' else 'Missing' for c in competitors],
-    'Screenshots': [all_data[c].get('screenshots_taken', 0) for c in competitors]
+    'Screenshots': [all_data[c].get('screenshots_taken', 0) for c in competitors],
+    'Pages Explored': [len(all_data[c].get('additional_pages', [])) for c in competitors]
 }})
 
 comparison_df.to_csv('analysis/comparison_matrix.csv', index=False)
@@ -319,8 +682,6 @@ for file in created_files:
             console.print(f"[red]❌ Visualization error: {e}[/red]")
             return {"status": "error", "error": str(e)}
 
-
-
     def _extract_file_content(self, result: Dict) -> str:
         """Extract file content from readFiles result."""
         for event in result.get("stream", []):
@@ -340,13 +701,15 @@ for file in created_files:
             # Create the report string directly here in case all else fails
             direct_report = f"# Competitive Intelligence Report\n\n"
             direct_report += f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            direct_report += f"**Session ID:** {analysis_results.get('session_id', 'N/A')}\n\n"
             direct_report += f"## Executive Summary\n\n"
             direct_report += f"This report analyzes {len(all_data)} competitor websites.\n\n"
             
             # Add sections for each competitor to direct report
             for competitor, data in all_data.items():
                 direct_report += f"### {competitor}\n\n"
-                direct_report += f"**Website:** {data.get('url', 'N/A')}\n\n"
+                direct_report += f"**Website:** {data.get('url', 'N/A')}\n"
+                direct_report += f"**Pages Explored:** {len(data.get('additional_pages', []))}\n\n"
                 
                 # Add pricing section if available
                 if data.get('pricing', {}).get('data'):
@@ -404,6 +767,7 @@ os.makedirs('reports', exist_ok=True)
 report_content = """# Competitive Intelligence Report
 
 **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Session ID:** {analysis_results.get('session_id', 'N/A')}
 
 ## Executive Summary
 
@@ -417,6 +781,7 @@ This report analyzes {len(all_data)} competitor websites, examining their pricin
 - Pricing Data Collected: {sum(1 for d in all_data.values() if d.get('pricing', {}).get('status') == 'success')}
 - Feature Data Collected: {sum(1 for d in all_data.values() if d.get('features', {}).get('status') == 'success')}
 - Total Screenshots: {sum(d.get('screenshots_taken', 0) for d in all_data.values())}
+- Total Pages Explored: {sum(len(d.get('additional_pages', [])) for d in all_data.values())}
 
 ## Detailed Competitor Analysis
 """
@@ -427,7 +792,8 @@ for competitor, data in {json.dumps(all_data)}.items():
     report_content += f"**Website:** {{data.get('url', 'N/A')}}  \\n"
     report_content += f"**Status:** {{data.get('status', 'Unknown')}}  \\n"
     report_content += f"**Analysis Time:** {{data.get('timestamp', 'N/A')}}  \\n"
-    report_content += f"**Screenshots Taken:** {{data.get('screenshots_taken', 0)}}\\n\\n"
+    report_content += f"**Screenshots Taken:** {{data.get('screenshots_taken', 0)}}\\n"
+    report_content += f"**Pages Explored:** {{len(data.get('additional_pages', []))}}\\n\\n"
     
     # Add pricing section
     if data.get('pricing', {{}}).get('status') == 'success':
@@ -522,7 +888,7 @@ import os
 
 created_files = []
 # Check common directories
-for dir_name in ['reports', 'analysis', 'visualizations', 'data']:
+for dir_name in ['reports', 'analysis', 'visualizations', 'data', 'sessions']:
     if os.path.exists(dir_name):
         for file in os.listdir(dir_name):
             file_path = os.path.join(dir_name, file)

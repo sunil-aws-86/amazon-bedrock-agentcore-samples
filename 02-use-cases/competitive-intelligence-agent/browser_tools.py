@@ -212,6 +212,248 @@ class BrowserTools:
             console.print(f"[red]❌ Navigation error: {e}[/red]")
             return {"status": "error", "url": url, "error": str(e)}
     
+    async def analyze_forms_and_inputs(self) -> Dict:
+        """NEW: Analyze forms and input fields on the page."""
+        console.print("[cyan]📝 Analyzing forms and inputs...[/cyan]")
+        
+        try:
+            # Find all forms on the page
+            forms_data = await self.page.evaluate("""
+                () => {
+                    const forms = Array.from(document.querySelectorAll('form'));
+                    return {
+                        forms: forms.map(form => ({
+                            action: form.action,
+                            method: form.method,
+                            id: form.id,
+                            className: form.className,
+                            inputs: Array.from(form.querySelectorAll('input, select, textarea')).map(input => ({
+                                type: input.type || input.tagName.toLowerCase(),
+                                name: input.name,
+                                id: input.id,
+                                placeholder: input.placeholder,
+                                required: input.required,
+                                value: input.type === 'password' ? '[hidden]' : input.value
+                            }))
+                        })),
+                        total_inputs: document.querySelectorAll('input, select, textarea').length,
+                        has_file_upload: document.querySelectorAll('input[type="file"]').length > 0,
+                        has_password_field: document.querySelectorAll('input[type="password"]').length > 0
+                    };
+                }
+            """)
+            
+            console.print(f"[green]Found {len(forms_data['forms'])} forms with {forms_data['total_inputs']} inputs[/green]")
+            
+            if forms_data['has_file_upload']:
+                console.print("[yellow]📎 Page has file upload capability[/yellow]")
+            
+            if forms_data['has_password_field']:
+                console.print("[yellow]🔐 Page has authentication form[/yellow]")
+            
+            return {
+                "status": "success",
+                **forms_data
+            }
+            
+        except Exception as e:
+            console.print(f"[yellow]⚠️ Form analysis error: {e}[/yellow]")
+            return {"status": "error", "error": str(e)}
+    
+    async def handle_authentication(self, username: str, password: str, form_selector: Optional[str] = None) -> Dict:
+        """NEW: Handle authentication on login pages."""
+        console.print("[cyan]🔐 Handling authentication...[/cyan]")
+        
+        try:
+            # Find login form
+            if not form_selector:
+                # Common selectors for login forms
+                possible_selectors = [
+                    'form[action*="login"]',
+                    'form[action*="signin"]',
+                    'form#loginForm',
+                    'form.login-form',
+                    'form'
+                ]
+                
+                for selector in possible_selectors:
+                    form = await self.page.query_selector(selector)
+                    if form:
+                        form_selector = selector
+                        break
+            
+            if not form_selector:
+                return {"status": "error", "error": "No login form found"}
+            
+            # Fill in credentials
+            await self.page.fill('input[type="email"], input[type="text"], input[name*="user"]', username)
+            await self.page.fill('input[type="password"]', password)
+            
+            # Submit form
+            await self.page.click('button[type="submit"], input[type="submit"]')
+            
+            # Wait for navigation or response
+            await self.page.wait_for_timeout(3000)
+            
+            # Check if login was successful (simple heuristic)
+            current_url = self.page.url
+            
+            return {
+                "status": "success",
+                "logged_in": "login" not in current_url.lower(),
+                "current_url": current_url
+            }
+            
+        except Exception as e:
+            console.print(f"[red]❌ Authentication error: {e}[/red]")
+            return {"status": "error", "error": str(e)}
+    
+    async def upload_file_to_form(self, file_path: str, selector: str = 'input[type="file"]') -> Dict:
+        """NEW: Upload a file to a form."""
+        console.print(f"[cyan]📤 Uploading file: {file_path}[/cyan]")
+        
+        try:
+            # Find file input
+            file_input = await self.page.query_selector(selector)
+            if not file_input:
+                return {"status": "error", "error": "No file input found"}
+            
+            # Set the file
+            await file_input.set_input_files(file_path)
+            
+            # Wait for any upload progress
+            await self.page.wait_for_timeout(2000)
+            
+            return {
+                "status": "success",
+                "file_uploaded": file_path
+            }
+            
+        except Exception as e:
+            console.print(f"[red]❌ File upload error: {e}[/red]")
+            return {"status": "error", "error": str(e)}
+    
+    async def explore_multi_page_workflow(self, target_pages: List[str]) -> List[Dict]:
+        """NEW: Explore multiple pages in a workflow."""
+        console.print(f"[cyan]🔄 Exploring {len(target_pages)} additional pages...[/cyan]")
+        
+        explored_pages = []
+        base_url = self.page.url
+        
+        for target in target_pages:
+            try:
+                # Try to find and navigate to the page
+                console.print(f"[dim]Looking for: {target}[/dim]")
+                
+                # Look for links containing the target keyword
+                link_found = False
+                selectors = [
+                    f'a[href*="{target}"]',
+                    f'a:has-text("{target}")',
+                    f'nav a:has-text("{target}")',
+                    f'[class*="menu"] a:has-text("{target}")'
+                ]
+                
+                for selector in selectors:
+                    try:
+                        link = await self.page.query_selector(selector)
+                        if link:
+                            await link.click()
+                            await self.page.wait_for_load_state("domcontentloaded")
+                            await self.page.wait_for_timeout(2000)
+                            
+                            # Capture information about this page
+                            page_info = {
+                                "target": target,
+                                "url": self.page.url,
+                                "title": await self.page.title(),
+                                "found": True,
+                                "timestamp": datetime.now().isoformat()
+                            }
+                            
+                            # Take a screenshot
+                            await self.take_annotated_screenshot(f"Explored - {target}")
+                            
+                            explored_pages.append(page_info)
+                            console.print(f"[green]✅ Found and explored: {target}[/green]")
+                            link_found = True
+                            
+                            # Go back to base URL for next exploration
+                            await self.page.goto(base_url, wait_until="domcontentloaded")
+                            break
+                    except:
+                        continue
+                
+                if not link_found:
+                    explored_pages.append({
+                        "target": target,
+                        "found": False,
+                        "timestamp": datetime.now().isoformat()
+                    })
+                    console.print(f"[yellow]⚠️ Could not find: {target}[/yellow]")
+                    
+            except Exception as e:
+                console.print(f"[yellow]⚠️ Error exploring {target}: {e}[/yellow]")
+                explored_pages.append({
+                    "target": target,
+                    "found": False,
+                    "error": str(e)
+                })
+        
+        return explored_pages
+    
+    async def execute_javascript_analysis(self, custom_script: Optional[str] = None) -> Dict:
+        """NEW: Execute custom JavaScript for advanced analysis."""
+        console.print("[cyan]⚡ Executing JavaScript analysis...[/cyan]")
+        
+        try:
+            if custom_script:
+                result = await self.page.evaluate(custom_script)
+            else:
+                # Default analysis script
+                result = await self.page.evaluate("""
+                    () => {
+                        // Analyze page structure
+                        const analysis = {
+                            // Count different element types
+                            tables: document.querySelectorAll('table').length,
+                            forms: document.querySelectorAll('form').length,
+                            images: document.querySelectorAll('img').length,
+                            videos: document.querySelectorAll('video').length,
+                            iframes: document.querySelectorAll('iframe').length,
+                            
+                            // Check for specific technologies
+                            hasReact: window.React !== undefined,
+                            hasJQuery: window.jQuery !== undefined,
+                            hasAngular: window.angular !== undefined,
+                            
+                            // Page metrics
+                            documentHeight: document.documentElement.scrollHeight,
+                            viewportHeight: window.innerHeight,
+                            
+                            // Interactive elements
+                            buttons: document.querySelectorAll('button').length,
+                            links: document.querySelectorAll('a').length,
+                            
+                            // Meta information
+                            metaDescription: document.querySelector('meta[name="description"]')?.content,
+                            metaKeywords: document.querySelector('meta[name="keywords"]')?.content
+                        };
+                        
+                        return analysis;
+                    }
+                """)
+            
+            console.print(f"[green]JavaScript analysis complete[/green]")
+            return {
+                "status": "success",
+                "analysis": result
+            }
+            
+        except Exception as e:
+            console.print(f"[red]❌ JavaScript execution error: {e}[/red]")
+            return {"status": "error", "error": str(e)}
+    
     async def intelligent_scroll_and_discover(self) -> List[Dict]:
         """Perform intelligent scrolling to discover content sections."""
         console.print("[cyan]🔍 Discovering page content...[/cyan]")
@@ -239,6 +481,9 @@ class BrowserTools:
                     ('[class*="plan"]', 'Plans'),
                     ('[class*="feature"]', 'Features'),
                     ('table', 'Table'),
+                    ('form', 'Form'),
+                    ('[class*="testimonial"]', 'Testimonials'),
+                    ('[class*="faq"]', 'FAQ')
                 ]
                 
                 for selector, label in important_selectors:
@@ -269,9 +514,10 @@ class BrowserTools:
         console.print(f"[cyan]🎯 Looking for {target} page...[/cyan]")
         
         nav_patterns = {
-            "pricing": ["pricing", "price", "plans", "cost"],
-            "features": ["features", "capabilities", "benefits"],
-            "docs": ["docs", "documentation", "api"],
+            "pricing": ["pricing", "price", "plans", "cost", "subscription"],
+            "features": ["features", "capabilities", "benefits", "solutions"],
+            "docs": ["docs", "documentation", "api", "developers"],
+            "about": ["about", "company", "team", "story"]
         }
         
         keywords = nav_patterns.get(target.lower(), [target.lower()])
