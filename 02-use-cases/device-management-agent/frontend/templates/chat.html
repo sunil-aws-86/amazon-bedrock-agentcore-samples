@@ -270,16 +270,25 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
             
-            // Format the content
-            contentDiv.innerHTML = formatContent(content);
+            // Set content safely using textContent only
+            contentDiv.textContent = content;
             
             messageDiv.appendChild(contentDiv);
             chatMessages.appendChild(messageDiv);
         }
         
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
         function formatContent(content) {
+            // First escape any HTML to prevent XSS
+            const escapedContent = escapeHtml(content);
+            
             // Process markdown-like formatting
-            let formattedContent = content
+            let formattedContent = escapedContent
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')              // Italic
                 .replace(/`([^`]+)`/g, '<code>$1</code>')          // Inline code
