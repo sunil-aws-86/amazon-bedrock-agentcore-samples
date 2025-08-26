@@ -80,7 +80,7 @@ Learn how to integrate Amazon Bedrock AgentCore capabilities with popular Agenti
 Set agent-to-agent communication with A2A and different multi-agent collaboration patterns. Integrate agentic interfaces and learn how to use 
 Amazon Bedrock AgentCore with different entry points.
 
-## Quick Start - 🚀 [Amazon Bedrock AgentCore Runtime](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/runtime/quickstart.md)
+## Quick Start - [Amazon Bedrock AgentCore Runtime](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/runtime/quickstart.md)
 
 ### Step 1: 📋 Prerequisites
 
@@ -138,7 +138,7 @@ curl -X POST http://localhost:8080/invocations \
   -H "Content-Type: application/json" \
   -d '{"prompt": "Hello!"}'
 ```
-✅ Success: You should see a response like {"result": "Hello! I'm here to help..."}
+Success: You should see a response like {"result": "Hello! I'm here to help..."}
 
 ### Step 4: Deploy to AWS
 
@@ -151,9 +151,9 @@ agentcore launch
 agentcore invoke '{"prompt": "tell me a joke"}'
 ```
 
-🎉 Congratulations! Your agent is now running on Amazon Bedrock AgentCore Runtime!
+Congratulations! Your agent is now running on Amazon Bedrock AgentCore Runtime!
 
-Follow quickstart guides for [🔗 Gatway](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/gateway/quickstart.md), [🔐 Identity](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/identity/quickstart.md), [🧠 Memory](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/memory/quickstart.md), [📊 Observability](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/observability/quickstart.md), and [💻 builtin-tools](https://github.com/aws/bedrock-agentcore-starter-toolkit/tree/main/documentation/docs/user-guide/builtin-tools). 
+Follow quickstart guides for [Gatway](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/gateway/quickstart.md), [Identity](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/identity/quickstart.md), [Memory](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/memory/quickstart.md), [Observability](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/observability/quickstart.md), and [builtin-tools](https://github.com/aws/bedrock-agentcore-starter-toolkit/tree/main/documentation/docs/user-guide/builtin-tools). 
 
 ## 🔗 Related Links:
 
@@ -177,7 +177,7 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 
-## Contributors :muscle:
+## Contributors
 
 <a href="https://github.com/awslabs/amazon-bedrock-agentcore-samples/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=awslabs/amazon-bedrock-agentcore-samples" />
