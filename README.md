@@ -1,18 +1,39 @@
-# Amazon Bedrock AgentCore Samples
+<div align="center">
+  <div>
+    <a href="https://aws.amazon.com/bedrock/agentcore/">
+       <img width="175" height="117" alt="image" src="https://github.com/user-attachments/assets/5bbafcb5-ba7a-4937-ad1a-59975f27ffe8" />
+   </a>
+  </div>
+
+  <h1>
+      Amazon Bedrock AgentCore Samples
+  </h1>
+
+  <h2>
+    Deploy and operate AI agents securely at scale - using any framework and model
+  </h2>
+
+  <div align="center">
+    <a href="https://github.com/awslabs/amazon-bedrock-agentcore-samples/graphs/commit-activity"><img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/awslabs/amazon-bedrock-agentcore-samples"/></a>
+    <a href="https://github.com/awslabs/amazon-bedrock-agentcore-samples/issues"><img alt="GitHub open issues" src="https://img.shields.io/github/issues/awslabs/amazon-bedrock-agentcore-samples"/></a>
+    <a href="https://github.com/awslabs/amazon-bedrock-agentcore-samples/pulls"><img alt="GitHub open pull requests" src="https://img.shields.io/github/issues-pr/awslabs/amazon-bedrock-agentcore-samples"/></a>
+    <a href="https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/awslabs/amazon-bedrock-agentcore-samples"/></a>
+  </div>
+  
+  <p>
+    <a href="https://docs.aws.amazon.com/bedrock-agentcore/">Documentation</a>
+    ◆ <a href="https://github.com/aws/bedrock-agentcore-sdk-python">Python SDK</a>
+    ◆ <a href="https://github.com/aws/bedrock-agentcore-starter-toolkit">Starter Toolkit </a>
+    ◆ <a href="https://discord.gg/bedrockagentcore-preview">Discord</a>
+  </p>
+</div>
 
 Welcome to the Amazon Bedrock AgentCore Samples repository! 
 
 > [!IMPORTANT]
 > The examples provided in this repository are for experimental and educational purposes only. They demonstrate concepts and techniques but are not intended for direct use in production environments.
 
-**Amazon Bedrock AgentCore** is a complete set of capabilities to deploy and operate agents securely, at scale using any agentic framework and any LLM model. 
-With it, developers can accelerate AI agents into production quickly, accelerating the business value timelines. 
-
-Amazon Bedrock AgentCore provides tools and capabilities to make agents more effective and capable, purpose-built infrastructure to securely scale agents, and 
-controls to operate trustworthy agents. 
-
-Amazon Bedrock AgentCore capabilities are composable and work with popular open-source frameworks and any model, so you don’t have to choose between 
-open-source flexibility and enterprise-grade security and reliability.
+Amazon Bedrock AgentCore is both framework-agnostic and model-agnostic, giving you the flexibility to deploy and operate advanced AI agents securely and at scale. Whether you’re building with [Strands Agents](https://strandsagents.com/latest/), [CrewAI](https://www.crewai.com/), [LangGraph](https://www.langchain.com/langgraph), [LlamaIndex](https://www.llamaindex.ai/), or any other framework—and running them on any Large Language Model (LLM)—Amazon Bedrock AgentCore provides the infrastructure to support them. By eliminating the undifferentiated heavy lifting of building and managing specialized agent infrastructure, Amazon Bedrock AgentCore lets you bring your preferred framework and model, and deploy without rewriting code.
 
 This collection provides examples and tutorials to help you understand, implement, and integrate Amazon Bedrock AgentCore capabilities into your applications.
 
