@@ -82,7 +82,7 @@ Amazon Bedrock AgentCore with different entry points.
 
 ## Quick Start - [Amazon Bedrock AgentCore Runtime](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/runtime/quickstart.md)
 
-### Step 1: 📋 Prerequisites
+### Step 1: Prerequisites
 
 - An [AWS account](https://signin.aws.amazon.com/signin?redirect_uri=https%3A%2F%2Fportal.aws.amazon.com%2Fbilling%2Fsignup%2Fresume&client_id=signup) with credentials configured (`aws configure`)
 - [Python 3.10](https://www.python.org/downloads/) or later
