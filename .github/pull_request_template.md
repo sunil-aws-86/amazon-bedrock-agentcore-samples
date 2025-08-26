@@ -20,8 +20,8 @@ Changes to ..., because ...
 
 If your change doesn't seem to apply, please leave them unchecked.
 
-* [ ] I have reviewed the [contributing guidelines](https://github.com/awslabs/amazon-bedrock-agentcore-samples/CONTRIBUTING.md)
-* [ ] Add your name to [CONTRIBUTORS.md](https://github.com/awslabs/amazon-bedrock-agentcore-samples/CONTRIBUTORS.md)
+* [ ] I have reviewed the [contributing guidelines](https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/CONTRIBUTING.md)
+* [ ] Add your name to [CONTRIBUTORS.md](https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/CONTRIBUTORS.md)
 * [ ] Have you checked to ensure there aren't other open [Pull Requests](https://github.com/awslabs/amazon-bedrock-agentcore-samples/pulls) for the same update/change?
 * [ ] Are you uploading a dataset?
 * [ ] Have you documented **Introduction**, **Architecture Diagram**, **Prerequisites**, **Usage**, **Sample Prompts**, and **Clean Up** steps in your example README?
