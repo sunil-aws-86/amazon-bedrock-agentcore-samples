@@ -1,7 +1,7 @@
 <div align="center">
   <div>
     <a href="https://aws.amazon.com/bedrock/agentcore/">
-      <img width="243" height="202" alt="image" src="https://github.com/user-attachments/assets/b8b9456d-c9e2-45e1-ac5b-760f21f1ac18" />
+      <img width="200" height="200" alt="image" src="https://github.com/user-attachments/assets/b8b9456d-c9e2-45e1-ac5b-760f21f1ac18" />
    </a>
   </div>
 
