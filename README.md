@@ -80,14 +80,80 @@ Learn how to integrate Amazon Bedrock AgentCore capabilities with popular Agenti
 Set agent-to-agent communication with A2A and different multi-agent collaboration patterns. Integrate agentic interfaces and learn how to use 
 Amazon Bedrock AgentCore with different entry points.
 
-## 🚀 Quick Start
+## Quick Start - 🚀 [Amazon Bedrock AgentCore Runtime](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/runtime/quickstart.md)
 
-**Clone the repository**
+### Step 1: 📋 Prerequisites
 
-   ```bash
-   git clone https://github.com/awslabs/amazon-bedrock-agentcore-samples.git
-   ```
+- An [AWS account](https://signin.aws.amazon.com/signin?redirect_uri=https%3A%2F%2Fportal.aws.amazon.com%2Fbilling%2Fsignup%2Fresume&client_id=signup) with credentials configured (`aws configure`)
+- [Python 3.10](https://www.python.org/downloads/) or later
+- [Docker](https://www.docker.com/) or [Finch](https://runfinch.com/) installed and running - only for local development
+- Model Access: Anthropic Claude 4.0 enabled in [Amazon Bedrock console](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access-modify.html)
+- AWS Permissions:
+    - `BedrockAgentCoreFullAccess` managed policy
+    - `AmazonBedrockFullAccess` managed policy
+    - `Caller permissions`: See detailed policy [here](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/runtime/permissions.md#developercaller-permissions)
 
+### Step 2: Install and Create Your Agent
+
+```bash
+# Install both packages
+pip install bedrock-agentcore strands-agents bedrock-agentcore-starter-toolkit
+```
+
+Create `my_agent.py`:
+
+```python
+from bedrock_agentcore import BedrockAgentCoreApp
+from strands import Agent
+
+app = BedrockAgentCoreApp()
+agent = Agent()
+
+@app.entrypoint
+def invoke(payload):
+    """Your AI agent function"""
+    user_message = payload.get("prompt", "Hello! How can I help you today?")
+    result = agent(user_message)
+    return {"result": result.message}
+
+if __name__ == "__main__":
+    app.run()
+```
+Create `requirements.txt`:
+
+```bash
+cat > requirements.txt << EOF
+bedrock-agentcore
+strands-agents
+EOF
+```
+### Step 3: Test Locally
+
+```bash
+# Start your agent
+python my_agent.py
+
+# Test it (in another terminal)
+curl -X POST http://localhost:8080/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Hello!"}'
+```
+✅ Success: You should see a response like {"result": "Hello! I'm here to help..."}
+
+### Step 4: Deploy to AWS
+
+```bash
+# Configure and deploy (auto-creates all required resources)
+agentcore configure -e my_agent.py
+agentcore launch
+
+# Test your deployed agent
+agentcore invoke '{"prompt": "tell me a joke"}'
+```
+
+🎉 Congratulations! Your agent is now running on Amazon Bedrock AgentCore Runtime!
+
+Follow quickstart guides for [🔗 Gatway](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/gateway/quickstart.md), [🔐 Identity](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/identity/quickstart.md), [🧠 Memory](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/memory/quickstart.md), [📊 Observability](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/documentation/docs/user-guide/observability/quickstart.md), and [💻 builtin-tools](https://github.com/aws/bedrock-agentcore-starter-toolkit/tree/main/documentation/docs/user-guide/builtin-tools). 
 
 ## 🔗 Related Links:
 
