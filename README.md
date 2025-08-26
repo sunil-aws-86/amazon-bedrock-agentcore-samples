@@ -89,7 +89,7 @@ Amazon Bedrock AgentCore with different entry points.
    ```
 
 
-🔗 **Related Links**:
+## 🔗 Related Links:
 
 - [Getting started with Amazon Bedrock AgentCore - Workshop](https://catalog.us-east-1.prod.workshops.aws/workshops/850fcd5c-fd1f-48d7-932c-ad9babede979/en-US)
 - [Diving Deep into Bedrock AgentCore - Workshop](https://catalog.workshops.aws/agentcore-deep-dive/en-US)
