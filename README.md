@@ -42,7 +42,7 @@ This collection provides examples and tutorials to help you understand, implemen
 Build your first production-ready AI agent with Amazon Bedrock AgentCore. We’ll take you beyond prototyping and show you how to productionize your first agentic AI application using Amazon Bedrock AgentCore. 
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=wzIQDPFQx30"><img src="https://markdown-videos-api.jorgenkh.no/youtube/wzIQDPFQx30?width=440&height=300&filetype=jpeg" /></a>
+  <a href="https://www.youtube.com/watch?v=wzIQDPFQx30"><img src="https://markdown-videos-api.jorgenkh.no/youtube/wzIQDPFQx30?width=640&height=360&filetype=jpeg" /></a>
 </p>
 
 ## 📁 Repository Structure
@@ -88,33 +88,13 @@ Amazon Bedrock AgentCore with different entry points.
    git clone https://github.com/awslabs/amazon-bedrock-agentcore-samples.git
    ```
 
-You will need to install the pre-requisites for deploying your agent into AgentCore Runtime. Follow the instructions below to get your environment up and running:
 
-1. Install Docker or Finch. You can get started [here](https://www.docker.com/get-started/)
-1. Make sure that you Docker or Finch is running
-1. For better package control it is strongly recommended that you create a virtual environment to run your applications. `uv` tool is a high-speed package and project manager for Python. We recommend using `uv` to manager your environment here. You can install uv with the instructions from [here](https://docs.astral.sh/uv/getting-started/installation/)
-1. Once you have `uv` installed, create and activate a new environment using the following commands:
-```commandline
-uv python install 3.10
-uv venv --python 3.10
-source .venv/bin/activate
-uv init
-```
-Next add the required packages to your `uv` environment:
-```commandline
-uv add -r requirements.txt --active
-```
-You can start a Jupyter notebook instance from your `uv` environment using:
-```commandline
-uv run --with jupyter jupyter lab
-```
+🔗 **Related Links**:
 
-## 📋 Prerequisites
-
-- Python 3.10 or higher
-- AWS account
-- Docker or Finch installed and running
-- Jupyter Notebook (for tutorials)
+- [Getting started with Amazon Bedrock AgentCore - Workshop](https://catalog.us-east-1.prod.workshops.aws/workshops/850fcd5c-fd1f-48d7-932c-ad9babede979/en-US)
+- [Diving Deep into Bedrock AgentCore - Workshop](https://catalog.workshops.aws/agentcore-deep-dive/en-US)
+- [Amazon Bedrock AgentCore pricing](https://aws.amazon.com/bedrock/agentcore/pricing/)
+- [Amazon Bedrock AgentCore FAQs](https://aws.amazon.com/bedrock/agentcore/faqs/)
 
 ## 🤝 Contributing
 
@@ -125,15 +105,22 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 - Reporting issues
 - Suggesting enhancements
 
+
 ## 📄 License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
 
-- **Issues**: Report bugs or request features via [GitHub Issues](https://github.com/awslabs/amazon-bedrock-agentcore-samples/issues)
-- **Documentation**: Check individual folder READMEs for specific guidance
+## Contributors :muscle:
 
-## 🔄 Updates
+<a href="https://github.com/awslabs/amazon-bedrock-agentcore-samples/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=awslabs/amazon-bedrock-agentcore-samples" />
+</a>
 
-This repository is actively maintained and updated with new capabilities and examples. Watch the repository to stay updated with the latest additions.
+## Stargazers :star:
+
+[![Stargazers repo roster for @awslabs/amazon-bedrock-agentcore-samples](https://reporoster.com/stars/awslabs/amazon-bedrock-agentcore-samples)](https://github.com/awslabs/amazon-bedrock-agentcore-samples/stargazers)
+
+## Forkers :raised_hands:
+
+[![Forkers repo roster for @awslabs/amazon-bedrock-agentcore-samples](https://reporoster.com/forks/awslabs/amazon-bedrock-agentcore-samples)](https://github.com/awslabs/amazon-bedrock-agentcore-samples/network/members)
