@@ -37,6 +37,14 @@ This collection provides examples and tutorials to help you understand, implemen
 > [!IMPORTANT]
 > The examples provided in this repository are for experimental and educational purposes only. They demonstrate concepts and techniques but are not intended for direct use in production environments.
 
+## 🎥 Video
+
+Build your first production-ready AI agent with Amazon Bedrock AgentCore. We’ll take you beyond prototyping and show you how to productionize your first agentic AI application using Amazon Bedrock AgentCore. 
+
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=wzIQDPFQx30"><img src="https://markdown-videos-api.jorgenkh.no/youtube/wzIQDPFQx30?width=440&height=300&filetype=jpeg" /></a>
+</p>
+
 ## 📁 Repository Structure
 
 ### 📚 [`01-tutorials/`](./01-tutorials/)
