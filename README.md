@@ -182,11 +182,3 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 <a href="https://github.com/awslabs/amazon-bedrock-agentcore-samples/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=awslabs/amazon-bedrock-agentcore-samples" />
 </a>
-
-## Stargazers :star:
-
-[![Stargazers repo roster for @awslabs/amazon-bedrock-agentcore-samples](https://reporoster.com/stars/awslabs/amazon-bedrock-agentcore-samples)](https://github.com/awslabs/amazon-bedrock-agentcore-samples/stargazers)
-
-## Forkers :raised_hands:
-
-[![Forkers repo roster for @awslabs/amazon-bedrock-agentcore-samples](https://reporoster.com/forks/awslabs/amazon-bedrock-agentcore-samples)](https://github.com/awslabs/amazon-bedrock-agentcore-samples/network/members)
