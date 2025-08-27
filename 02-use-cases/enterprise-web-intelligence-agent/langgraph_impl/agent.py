@@ -3,15 +3,22 @@
 import asyncio
 import sys
 from pathlib import Path
-from typing import Dict, List, TypedDict, Annotated, Optional
+from typing import Dict, List, TypedDict, Annotated, Optional, Any
 from datetime import datetime
 
-from langgraph.graph import StateGraph, END
+import langgraph
+import langgraph.graph as lg_graph
+StateGraph = lg_graph.StateGraph
+END = lg_graph.END
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_aws import ChatBedrockConverse
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+
+sys.path.insert(0, str(Path(__file__).parent))
+from utils.imports import setup_interactive_tools_import
+paths = setup_interactive_tools_import()
 
 from interactive_tools.browser_viewer import BrowserViewerServer
 
@@ -19,6 +26,7 @@ from interactive_tools.browser_viewer import BrowserViewerServer
 from config import AgentConfig
 from browser_tools import BrowserTools
 from analysis_tools import AnalysisTools
+
 
 
 console = Console()
@@ -661,3 +669,73 @@ class CompetitiveIntelligenceAgent:
         self.analysis_tools.cleanup()
         
         console.print("[green]✅ Cleanup complete[/green]")
+
+
+    async def cleanup_resources(state: CompetitiveIntelState):
+        """Clean up all resources to prevent ongoing costs."""
+        
+        cleanup_report = {
+            "browsers_closed": 0,
+            "s3_objects_deleted": 0,
+            "errors": []
+        }
+        
+        try:
+            # 1. Stop BedrockAgentCore browsers
+            if 'browser_tools' in state:
+                browser_tools = state['browser_tools']
+                if browser_tools.browser_id:
+                    control_client = boto3.client(
+                        "bedrock-agentcore-control",
+                        region_name=state['config'].region,
+                        endpoint_url=get_control_plane_endpoint(state['config'].region)
+                    )
+                    
+                    try:
+                        control_client.delete_browser(browserId=browser_tools.browser_id)
+                        cleanup_report["browsers_closed"] += 1
+                    except Exception as e:
+                        cleanup_report["errors"].append(str(e))
+            
+            # 2. Clean up parallel browser sessions
+            for session in state.get('parallel_browser_sessions', []):
+                if session.browser_id:
+                    try:
+                        control_client.delete_browser(browserId=session.browser_id)
+                        cleanup_report["browsers_closed"] += 1
+                    except:
+                        pass
+            
+            # 3. Stop Code Interpreter
+            if 'analysis_tools' in state:
+                try:
+                    state['analysis_tools'].cleanup()
+                except:
+                    pass
+            
+            # 4. Delete recordings if requested
+            if state.get('delete_recordings'):
+                s3_client = boto3.client('s3')
+                recording_path = state.get('recording_path', '')
+                
+                if recording_path.startswith('s3://'):
+                    parts = recording_path.replace('s3://', '').split('/', 1)
+                    bucket = parts[0]
+                    prefix = parts[1] if len(parts) > 1 else ''
+                    
+                    try:
+                        paginator = s3_client.get_paginator('list_objects_v2')
+                        pages = paginator.paginate(Bucket=bucket, Prefix=prefix)
+                        
+                        for page in pages:
+                            if 'Contents' in page:
+                                for obj in page['Contents']:
+                                    s3_client.delete_object(Bucket=bucket, Key=obj['Key'])
+                                    cleanup_report["s3_objects_deleted"] += 1
+                    except Exception as e:
+                        cleanup_report["errors"].append(f"S3: {str(e)}")
+            
+        except Exception as e:
+            cleanup_report["errors"].append(str(e))
+        
+        return cleanup_report

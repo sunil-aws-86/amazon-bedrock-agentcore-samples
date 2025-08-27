@@ -1,9 +1,5 @@
-boto3
 playwright
-langchain-aws
-langgraph
 rich
-pandas
 matplotlib
 seaborn
 fastapi

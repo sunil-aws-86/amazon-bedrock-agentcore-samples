@@ -277,7 +277,29 @@ class UnifiedS3DataSource:
         }
     
     def _create_fallback_recording_data(self) -> Dict:
-        """Create fallback recording data with minimal events"""
+        """
+        Create fallback recording data with minimal events when actual recording is unavailable.
+        
+        Purpose:
+        1. **Graceful Degradation**: When S3 recordings are incomplete or corrupted,
+        this ensures the replay viewer doesn't crash completely.
+        
+        2. **Development/Testing**: During development, recordings might not be 
+        available yet. This allows testing the replay viewer interface.
+        
+        3. **Partial Failures**: If recording upload partially fails (network issues,
+        S3 permissions), users can still access the replay viewer.
+        
+        4. **User Experience**: Instead of showing an error, we show a minimal
+        interface with a message explaining the recording is unavailable.
+        
+        5. **Debugging**: Helps identify when recordings fail - if users see the
+        fallback message, they know to check S3 uploads and permissions.
+        
+        Returns:
+            Dict containing minimal valid rrweb events that create a page showing
+            an informative message about the recording being unavailable.
+        """
         timestamp = int(time.time() * 1000)
         
         # Create minimal valid events for rrweb player
@@ -304,10 +326,12 @@ class UnifiedS3DataSource:
                             "childNodes": [{
                                 "type": 2,
                                 "tagName": "body",
-                                "attributes": {},
+                                "attributes": {
+                                    "style": "font-family: sans-serif; padding: 40px; text-align: center;"
+                                },
                                 "childNodes": [{
                                     "type": 3,
-                                    "textContent": "Recording data not available"
+                                    "textContent": "Recording data not available - this may be due to upload delays or permissions issues"
                                 }]
                             }]
                         }]
@@ -317,6 +341,6 @@ class UnifiedS3DataSource:
         ]
         
         return {
-            'metadata': {},
+            'metadata': {'fallback': True},
             'events': events
         }

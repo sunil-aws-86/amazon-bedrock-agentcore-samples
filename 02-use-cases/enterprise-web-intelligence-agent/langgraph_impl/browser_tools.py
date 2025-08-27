@@ -36,6 +36,7 @@ class BrowserTools:
         self._discovered_apis = []
         self._performance_metrics = {}
     
+
     def create_browser_with_recording(self) -> str:
         """Create a browser with recording configuration using Control Plane API."""
         console.print("[cyan]🔧 Creating browser with recording configuration...[/cyan]")
@@ -71,7 +72,16 @@ class BrowserTools:
         )
         
         self.browser_id = response["browserId"]
+        
+        # NEW: Store the structured recording configuration
+        self.recording_config = response.get("recording", {})
+        
+        # Build recording path for display (but keep structured config)
+        s3_location = self.recording_config.get("s3Location", {})
+        self.recording_path = f"s3://{s3_location.get('bucket')}/{s3_location.get('prefix')}"
+        
         console.print(f"✅ Browser created: {self.browser_id}")
+        console.print(f"📹 Recording to: {self.recording_path}")
         
         return self.browser_id
     
