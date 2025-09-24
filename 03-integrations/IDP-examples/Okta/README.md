@@ -24,36 +24,16 @@ Okta can be used as an identity provider with AgentCore Identity to:
 
 This learning path includes practical notebooks that demonstrate different integration patterns:
 
-### 1. Okta-agentcore-runtime-identity-complete.ipynb
+### 1. Step by Step Okta for Inbound Auth.ipynb
 
-**Purpose**: Demonstrates comprehensive Okta integration with AgentCore Runtime for both **inbound and outbound authentication** scenarios.
+**Purpose**: Shows how to use Okta for **inbound authentication** to protect AgentCore Runtime agent endpoints, ensuring only authenticated users can invoke agents.
 
 **What you'll learn**:
 - Setting up Okta tenant and application configuration
 - Creating AgentCore OAuth2 credential providers
 - Implementing OAuth 2.0 flows for user authentication and delegation
 - Building and deploying agents on AgentCore Runtime with Okta integration
-- Managing user sessions and token lifecycle
-
-**Key Integration Patterns**: 
-- User authenticates with Okta for access to AgentCore Runtime agents
-- AgentCore Runtime receives delegated permissions to access external APIs
-- Secure agent invocation with JWT token validation
-
-**Authentication Flows Covered**:
-- Authorization Code flow for user authentication
-- Client Credentials flow for machine-to-machine authentication
-- Token refresh and session management
-
-### 2. Step by Step Okta for Inbound Auth.ipynb
-
-**Purpose**: Shows how to use Okta for **inbound authentication** to protect AgentCore Runtime agent endpoints, ensuring only authenticated users can invoke agents.
-
-**What you'll learn**:
-- Configuring custom JWT authorizers with Okta
-- Using Okta Authentication SDK for device code flow
-- Protecting AgentCore Runtime endpoints with bearer tokens
-- Managing session-based conversations with authenticated users
+- Managing user sessions
 
 **Key Integration Pattern**:
 - Users must authenticate with Okta before accessing AgentCore Runtime agents endpoints
